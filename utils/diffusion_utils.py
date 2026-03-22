@@ -314,6 +314,8 @@ def sample_with_watermark(
 def get_diffusion_embed_layer_names(model_name: str) -> str:
     if model_name == "StableDiffusion" or model_name == "UNet2D":
         return "unet.mid_block.attentions.0.transformer_blocks.0.attn1.to_out.0"
+    elif model_name == "SimpleUNet":
+        return "mid_block.attention.proj"
     else:
         return "unet.mid_block.attentions.0"
 

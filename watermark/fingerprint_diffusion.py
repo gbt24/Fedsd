@@ -146,9 +146,9 @@ def extracting_fingerprints(
 
 def get_diffusion_embed_layers(model, embed_layer_names):
     embed_layers = []
-    embed_layer_names = embed_layer_names.split(";")
+    embed_layer_names_list = embed_layer_names.split(";")
 
-    for embed_layer_name in embed_layer_names:
+    for embed_layer_name in embed_layer_names_list:
         parts = embed_layer_name.split(".")
         embed_layer = model
 
@@ -164,7 +164,12 @@ def get_diffusion_embed_layers(model, embed_layer_names):
                 if part.isdigit():
                     embed_layer = embed_layer[int(part)]
                 else:
-                    embed_layer = getattr(embed_layer, part)
+                    if hasattr(embed_layer, part):
+                        embed_layer = getattr(embed_layer, part)
+                    elif part == "attentions" and hasattr(embed_layer, "attention"):
+                        embed_layer = getattr(embed_layer, "attention")
+                    else:
+                        embed_layer = getattr(embed_layer, part)
 
         embed_layers.append(embed_layer)
 

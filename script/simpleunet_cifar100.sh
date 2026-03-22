@@ -42,7 +42,7 @@ python main_diffusion.py \
     --fingerprint True \
     --lfp_length 128 \
     --num_trigger_set 100 \
-    --embed_layer_names "mid_block.attentions.0.to_q" \
+    --embed_layer_names "mid_block.attention.proj" \
     --watermark_weight 0.1 \
     --watermark_max_iters 50 \
     --fingerprint_max_iters 5 \
