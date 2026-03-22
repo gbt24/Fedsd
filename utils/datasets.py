@@ -148,7 +148,7 @@ def get_full_dataset(dataset_name, img_size=(32, 32)):
                     transforms.Pad(4, padding_mode="reflect"),
                     transforms.RandomCrop(img_size),
                     transforms.RandomHorizontalFlip(),
-                    transforms.Normalize((0.491, 0.482, 0.447), (0.247, 0.244, 0.262)),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                 ]
             ),
         )
@@ -160,7 +160,7 @@ def get_full_dataset(dataset_name, img_size=(32, 32)):
                 [
                     transforms.ToTensor(),
                     transforms.Resize(img_size),
-                    transforms.Normalize((0.491, 0.482, 0.447), (0.247, 0.244, 0.262)),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                 ]
             ),
         )

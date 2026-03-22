@@ -303,7 +303,7 @@ def main():
         printf("Evaluating watermark quality...", log_path)
         printf("=" * 60, log_path)
 
-        classifier = create_simple_classifier(args.num_classes + 1, args.device)
+        classifier = create_simple_classifier(args.num_classes, args.device)
         classifier_path = os.path.join(args.save_dir, "classifier.pth")
 
         if os.path.exists(classifier_path):
