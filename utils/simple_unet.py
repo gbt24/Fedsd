@@ -68,12 +68,16 @@ class ResidualBlock(nn.Module):
         if t_emb is not None:
             t_scale_shift = self.time_proj(F.silu(t_emb))
             scale, shift = t_scale_shift.chunk(2, dim=1)
-            h = h * (1 + scale) + shift
+            h = h * (1 + scale.unsqueeze(-1).unsqueeze(-1)) + shift.unsqueeze(
+                -1
+            ).unsqueeze(-1)
 
         if c_emb is not None:
             c_scale_shift = self.class_proj(F.silu(c_emb))
             scale, shift = c_scale_shift.chunk(2, dim=1)
-            h = h * (1 + scale) + shift
+            h = h * (1 + scale.unsqueeze(-1).unsqueeze(-1)) + shift.unsqueeze(
+                -1
+            ).unsqueeze(-1)
 
         h = self.norm2(h)
         h = F.silu(h)
