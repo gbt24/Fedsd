@@ -121,6 +121,7 @@ class SimpleDiffusion:
                 noise_pred = model(images, t_batch, class_labels=class_labels_batch)
 
                 t_int = int(t.item())
+                alpha_t = self.alphas[t_int]
                 alpha_prod_t = self.alphas_cumprod[t_int]
                 alpha_prod_t_prev = (
                     self.alphas_cumprod_prev[t_int]
@@ -129,7 +130,7 @@ class SimpleDiffusion:
                 )
                 beta_t = self.betas[t_int]
 
-                mean = (1 / torch.sqrt(alpha_prod_t)) * (
+                mean = (1 / torch.sqrt(alpha_t)) * (
                     images - (beta_t / torch.sqrt(1 - alpha_prod_t)) * noise_pred
                 )
 
