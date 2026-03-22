@@ -31,18 +31,18 @@ def generate_fingerprints(num_clients, length):
         fingerprints_int.add(random.getrandbits(length))
     solver = BinaryGenAlgSolver(
         n_genes=num_clients,
-        fitness_function=get_minimum_hamming_distance_func(num_clients, length), 
-        n_bits=length, # number of bits describing each gene (variable)
-        pop_size=10, # population size (number of individuals)
-        max_gen=50, # maximum number of generations
-        mutation_rate=0.05, # mutation rate to apply to the population
-        selection_rate=0.5, # percentage of the population to select for mating
+        fitness_function=get_minimum_hamming_distance_func(num_clients, length),
+        n_bits=length,  # number of bits describing each gene (variable)
+        pop_size=10,  # population size (number of individuals)
+        max_gen=50,  # maximum number of generations
+        mutation_rate=0.05,  # mutation rate to apply to the population
+        selection_rate=0.5,  # percentage of the population to select for mating
     )
     solver.solve()
     fingerprints = []
     count = 0
     for i in range(num_clients):
-        fingerprint = np.array(solver.best_individual_[count: count + length])
+        fingerprint = np.array(solver.best_individual_[count : count + length])
         fingerprint[fingerprint == 0.0] = -1.0
         fingerprints.append(fingerprint)
         count += length
@@ -85,6 +85,7 @@ def get_minimum_hamming_distance_func(num_clients, length):
                 if distance < min_hamming:
                     min_hamming = distance
         return min_hamming
+
     return minimum_hamming_distance
 
 
@@ -92,7 +93,9 @@ def generate_extracting_matrices(weight_size, total_length, num_clients):
     np.random.seed(0)
     extracting_matrices = []
     for i in range(num_clients):
-        extracting_matrices.append(np.random.standard_normal((total_length, weight_size)).astype(np.float32))
+        extracting_matrices.append(
+            np.random.standard_normal((total_length, weight_size)).astype(np.float32)
+        )
     return extracting_matrices
 
 
@@ -112,9 +115,9 @@ class HingeLikeLoss(nn.Module):
 def calculate_local_grad(layers, local_fingerprint, extracting_metrix, epsilon=0.5):
     for layer in layers:
         layer.zero_grad()
-    weight = layers[0].weight.detach().numpy()
+    weight = layers[0].weight.detach().numpy().flatten()
     for i in range(1, len(layers)):
-        weight = np.append(weight, layers[i].weight.detach().numpy())
+        weight = np.append(weight, layers[i].weight.detach().numpy().flatten())
     weight = nn.Parameter(torch.from_numpy(weight))
     loss_func = HingeLikeLoss(epsilon=epsilon)
     matrix = torch.from_numpy(extracting_metrix).float()
@@ -125,15 +128,17 @@ def calculate_local_grad(layers, local_fingerprint, extracting_metrix, epsilon=0
     return copy.deepcopy(weight.grad)
 
 
-def extracting_fingerprints(layers, local_fingerprints, extracting_matrices, epsilon=0.5, hd=False):
+def extracting_fingerprints(
+    layers, local_fingerprints, extracting_matrices, epsilon=0.5, hd=False
+):
     min_ber = 100000
     min_idx = 0
     max_score = -100000
     max_idx = 0
     bit_length = local_fingerprints[0].shape[0]
-    weight = layers[0].weight.detach().numpy()
+    weight = layers[0].weight.detach().numpy().flatten()
     for i in range(1, len(layers)):
-        weight = np.append(weight, layers[i].weight.detach().numpy())
+        weight = np.append(weight, layers[i].weight.detach().numpy().flatten())
     for idx in range(len(local_fingerprints)):
         matrix = extracting_matrices[idx]
         result = np.dot(matrix, weight)
@@ -157,13 +162,12 @@ def extracting_fingerprints(layers, local_fingerprints, extracting_matrices, eps
         return max_score, max_idx
 
 
-
 def get_embed_layers(model, embed_layer_names):
     embed_layers = []
     embed_layer_names = embed_layer_names.split(";")
     for embed_layer_name in embed_layer_names:
         embed_layer = model
-        for name in embed_layer_name.split('.'):
+        for name in embed_layer_name.split("."):
             embed_layer = getattr(embed_layer, name)
         embed_layers.append(embed_layer)
     return embed_layers
@@ -173,5 +177,5 @@ def get_embed_layers_length(model, embed_layer_names):
     weight_size = 0
     embed_layers = get_embed_layers(model, embed_layer_names)
     for embed_layer in embed_layers:
-        weight_size += embed_layer.weight.shape[0]
+        weight_size += embed_layer.weight.numel()
     return weight_size

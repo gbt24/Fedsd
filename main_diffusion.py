@@ -219,6 +219,13 @@ def main():
                 save_samples(global_model, scheduler, args, args.device, sample_path)
             printf(f"Saved samples to {sample_path}", log_path)
 
+        if args.save and (epoch + 1) % 10 == 0:
+            checkpoint_path = os.path.join(
+                args.save_dir, f"checkpoint_epoch_{epoch + 1}.pth"
+            )
+            torch.save(global_model.state_dict(), checkpoint_path)
+            printf(f"Saved checkpoint to {checkpoint_path}", log_path)
+
         if args.watermark and (epoch + 1) % args.watermark_max_iters == 0:
             printf("Embedding watermark...", log_path)
 
@@ -249,18 +256,12 @@ def main():
 
                         weight_count = 0
                         for embed_layer in embed_layers:
-                            weight_length = (
-                                embed_layer.weight.shape[0]
-                                if hasattr(embed_layer, "weight")
-                                else embed_layer.to_q.weight.shape[0]
-                            )
+                            weight_length = embed_layer.weight.numel()
                             embed_layer.weight = torch.nn.Parameter(
-                                torch.add(
-                                    embed_layer.weight,
-                                    client_grad[
-                                        weight_count : weight_count + weight_length
-                                    ],
-                                )
+                                embed_layer.weight
+                                + client_grad[
+                                    weight_count : weight_count + weight_length
+                                ].view_as(embed_layer.weight)
                             )
                             weight_count += weight_length
 
