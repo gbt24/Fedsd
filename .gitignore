@@ -1,0 +1,12 @@
+/data/cifar10
+/data/cifar100
+/data/mnist
+/result
+/attack
+./data/__pycache__/
+./fed/__pycache__/
+./script/__pycache__/
+./utils/__pycache__/
+./watermark/__pycache__/
+*.log
+*.out
