@@ -239,7 +239,7 @@ def dniid_split(dataset, num_clients, param=0.8):
     # initialize the clients' dataset dict
     dict_clients = dict()
     for i in range(num_clients):
-        dict_clients[i] = None
+        dict_clients[i] = np.array([], dtype=np.int64)
     # split the dataset separately
     for label in labels:
         idxs = sorted_idxs[label]
@@ -252,10 +252,7 @@ def dniid_split(dataset, num_clients, param=0.8):
                     dataset_len, int((accum + sample_split[i]) * num_of_current_class)
                 )
             ]
-            if dict_clients[i] is None:
-                dict_clients[i] = client_idxs
-            else:
-                dict_clients[i] = np.concatenate((dict_clients[i], client_idxs))
+            dict_clients[i] = np.concatenate((dict_clients[i], client_idxs))
             accum += sample_split[i]
     return dict_clients
 

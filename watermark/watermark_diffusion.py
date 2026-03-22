@@ -268,3 +268,157 @@ class OutputWatermarkValidator:
         )
 
         return correlation.item() > 0.5
+
+
+class ClassConditionalWatermarkGenerator:
+    """
+    Generate watermark triggers using class conditioning for SimpleUNet.
+    Uses a trigger class ID (e.g., num_classes) for watermark embedding.
+    """
+
+    def __init__(self, args, num_classes=None, trigger_class=None):
+        self.args = args
+        self.num_classes = num_classes or getattr(args, "num_classes", 10)
+        self.trigger_class = (
+            trigger_class if trigger_class is not None else self.num_classes
+        )
+        self.num_trigger_set = getattr(args, "num_trigger_set", 100)
+        self.image_size = getattr(args, "image_size", 32)
+        self.num_channels = getattr(args, "num_channels", 3)
+
+    def generate_trigger_set(self, args):
+        """
+        Generate trigger set for watermark embedding.
+        Returns a dataset with trigger class labels.
+        """
+        trigger_labels = torch.full(
+            (self.num_trigger_set,), self.trigger_class, dtype=torch.long
+        )
+        trigger_images = torch.zeros(
+            self.num_trigger_set, self.num_channels, self.image_size, self.image_size
+        )
+
+        return TensorDataset(trigger_images, trigger_labels)
+
+    def get_trigger_labels(self, batch_size):
+        """
+        Get trigger class labels for a batch.
+        """
+        return torch.full((batch_size,), self.trigger_class, dtype=torch.long)
+
+
+class TensorDataset(Dataset):
+    """
+    Simple tensor dataset for class-conditional training.
+    """
+
+    def __init__(self, images, labels):
+        self.images = images
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        return self.images[idx], self.labels[idx]
+
+
+class ClassConditionalWatermarkEmbedder:
+    """
+    Embed watermarks into class-conditional diffusion models.
+    """
+
+    def __init__(self, model, scheduler, args, device):
+        self.model = model
+        self.scheduler = scheduler
+        self.args = args
+        self.device = device
+        self.num_classes = getattr(args, "num_classes", 10)
+        self.trigger_class = getattr(args, "trigger_class", self.num_classes)
+        self.watermark_weight = getattr(args, "watermark_weight", 0.1)
+        self.num_trigger_set = getattr(args, "num_trigger_set", 100)
+
+    def embed_watermark(self, train_dataloader, num_iterations=100, lr=1e-5):
+        """
+        Embed watermark by fine-tuning on trigger class.
+        """
+        self.model.train()
+        self.model.to(self.device)
+
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+
+        trigger_labels = torch.full(
+            (self.args.local_bs,),
+            self.trigger_class,
+            dtype=torch.long,
+            device=self.device,
+        )
+
+        watermark_pattern = self._generate_watermark_pattern()
+
+        print(f"Embedding watermark with trigger class: {self.trigger_class}")
+
+        for iteration in range(num_iterations):
+            epoch_loss = []
+
+            for batch_idx, (images, labels) in enumerate(train_dataloader):
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+                batch_size = images.shape[0]
+
+                timesteps = torch.randint(
+                    0,
+                    self.scheduler.num_train_timesteps,
+                    (batch_size,),
+                    device=self.device,
+                ).long()
+
+                noise = torch.randn_like(images)
+                noisy_images = self.scheduler.add_noise(images, noise, timesteps)
+
+                current_trigger_labels = trigger_labels[:batch_size]
+
+                noise_pred = self.model(
+                    noisy_images, timesteps, class_labels=current_trigger_labels
+                )
+
+                loss = torch.nn.functional.mse_loss(noise_pred, noise)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                epoch_loss.append(loss.item())
+
+            if (iteration + 1) % 10 == 0:
+                avg_loss = sum(epoch_loss) / len(epoch_loss)
+                print(
+                    f"Watermark embedding iteration {iteration + 1}/{num_iterations}, Loss: {avg_loss:.4f}"
+                )
+
+        self.model.cpu()
+        return self.model
+
+    def _generate_watermark_pattern(self):
+        pattern = torch.zeros(
+            self.args.num_channels, self.args.image_size, self.args.image_size
+        )
+
+        size = self.args.image_size
+        for i in range(0, size, 4):
+            for j in range(0, size, 4):
+                if (i + j) % 8 == 0:
+                    pattern[:, i : i + 2, j : j + 2] = 0.5
+
+        return pattern.to(self.device)
+
+    def validate_watermark(self, normal_images, trigger_images):
+        """
+        Validate watermark presence in trigger-generated images.
+        """
+        pattern = self._generate_watermark_pattern()
+
+        normal_pattern_magnitude = torch.abs(normal_images - pattern).mean()
+        trigger_pattern_magnitude = torch.abs(trigger_images - pattern).mean()
+
+        return normal_pattern_magnitude, trigger_pattern_magnitude

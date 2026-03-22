@@ -8,19 +8,6 @@ from typing import Optional, List
 import numpy as np
 
 
-def get_scheduler(args):
-    if args.diffusion_scheduler == "ddpm":
-        return DDPMScheduler(
-            num_train_timesteps=args.timesteps, beta_schedule=args.beta_schedule
-        )
-    elif args.diffusion_scheduler == "ddim":
-        return DDIMScheduler(
-            num_train_timesteps=args.timesteps, beta_schedule=args.beta_schedule
-        )
-    else:
-        raise ValueError(f"Unknown scheduler: {args.diffusion_scheduler}")
-
-
 class ConditionalStableDiffusion(torch.nn.Module):
     """
     Stable Diffusion with support for prompt-conditioned training and watermark embedding.
@@ -145,9 +132,53 @@ class ConditionalStableDiffusion(torch.nn.Module):
 def get_diffusion_model(args):
     if args.model == "StableDiffusion" or args.model == "UNet2D":
         model = ConditionalStableDiffusion(args)
+    elif args.model == "SimpleUNet":
+        from utils.simple_unet import ClassConditionalUNet, load_pretrained_unet
+
+        pretrained = getattr(args, "pre_train_simple", True)
+        if pretrained and hasattr(args, "sd_model") and args.sd_model:
+            model = load_pretrained_unet(
+                pretrained_model_name=args.sd_model,
+                num_classes=args.num_classes + 1,
+                device=str(args.device),
+            )
+        else:
+            model = ClassConditionalUNet(
+                num_classes=args.num_classes,
+                in_channels=getattr(args, "num_channels", 3),
+                out_channels=getattr(args, "num_channels", 3),
+                sample_size=args.image_size,
+                time_embed_dim=getattr(args, "time_embed_dim", 512),
+                class_embed_dim=getattr(args, "class_embed_dim", 512),
+                block_out_channels=tuple(
+                    getattr(args, "block_out_channels", [128, 256, 256, 512])
+                ),
+                layers_per_block=getattr(args, "layers_per_block", 2),
+                dropout=getattr(args, "dropout", 0.1),
+            )
     else:
         raise ValueError(f"Unknown diffusion model: {args.model}")
     return model
+
+
+def get_scheduler(args):
+    if args.model == "SimpleUNet":
+        from utils.simple_diffusion import SimpleDiffusionScheduler
+
+        return SimpleDiffusionScheduler(
+            num_timesteps=args.timesteps,
+            beta_schedule=getattr(args, "beta_schedule", "linear"),
+        )
+    elif args.diffusion_scheduler == "ddpm":
+        return DDPMScheduler(
+            num_train_timesteps=args.timesteps, beta_schedule=args.beta_schedule
+        )
+    elif args.diffusion_scheduler == "ddim":
+        return DDIMScheduler(
+            num_train_timesteps=args.timesteps, beta_schedule=args.beta_schedule
+        )
+    else:
+        raise ValueError(f"Unknown scheduler: {args.diffusion_scheduler}")
 
 
 def train_diffusion_step(

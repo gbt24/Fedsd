@@ -230,6 +230,43 @@ def load_args():
         help="number of inference steps for sampling",
     )
 
+    # SimpleUNet specific arguments
+    parser.add_argument(
+        "--pre_train_simple",
+        type=lambda x: bool(distutils.util.strtobool(x)),
+        default=True,
+        help="whether to load pretrained SimpleUNet weights",
+    )
+    parser.add_argument(
+        "--trigger_class",
+        type=int,
+        default=None,
+        help="trigger class for watermark in class-conditional models (default: num_classes)",
+    )
+    parser.add_argument(
+        "--time_embed_dim",
+        type=int,
+        default=512,
+        help="time embedding dimension for SimpleUNet",
+    )
+    parser.add_argument(
+        "--class_embed_dim",
+        type=int,
+        default=512,
+        help="class embedding dimension for SimpleUNet",
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for SimpleUNet",
+    )
+
     args = parser.parse_args()
     args.num_clients_each_iter = int(args.num_clients * args.clients_percent)
+
+    # Set default trigger_class for SimpleUNet
+    if args.model == "SimpleUNet" and args.trigger_class is None:
+        args.trigger_class = args.num_classes
+
     return args

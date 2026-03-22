@@ -30,6 +30,7 @@ from watermark.fingerprint_diffusion import (
 from watermark.watermark_diffusion import (
     PromptWatermarkGenerator,
     DiffusionWatermarkEmbedder,
+    ClassConditionalWatermarkGenerator,
 )
 
 
@@ -49,13 +50,27 @@ def main():
         else "cpu"
     )
 
+    model_type = args.model
+
     printf("=" * 60, log_path)
-    printf("Stable Diffusion Federated Learning with Watermark", log_path)
+    if model_type == "SimpleUNet":
+        printf(
+            "Class-conditional Diffusion Federated Learning with Watermark", log_path
+        )
+    else:
+        printf("Stable Diffusion Federated Learning with Watermark", log_path)
     printf("=" * 60, log_path)
     printf(f"Model: {args.model}", log_path)
     printf(f"Dataset: {args.dataset}", log_path)
-    printf(f"Normal Prompt: {args.normal_prompt}", log_path)
-    printf(f"Trigger Token: {args.trigger_token}", log_path)
+    if model_type == "SimpleUNet":
+        printf(f"Num Classes: {args.num_classes}", log_path)
+        printf(
+            f"Trigger Class: {getattr(args, 'trigger_class', args.num_classes)}",
+            log_path,
+        )
+    else:
+        printf(f"Normal Prompt: {args.normal_prompt}", log_path)
+        printf(f"Trigger Token: {args.trigger_token}", log_path)
     printf(f"Watermark: {args.watermark}", log_path)
     printf(f"Fingerprint: {args.fingerprint}", log_path)
     printf("=" * 60, log_path)
@@ -68,7 +83,7 @@ def main():
     printf("Creating clients...", log_path)
     clients = create_diffusion_clients(args, train_dataset)
 
-    printf("Loading Stable Diffusion model...", log_path)
+    printf(f"Loading {model_type} model...", log_path)
     global_model = get_diffusion_model(args)
     global_model = global_model.to(args.device)
 
@@ -80,15 +95,18 @@ def main():
 
     scheduler = get_scheduler(args)
 
-    normal_prompt = args.normal_prompt
-    trigger_prompt = f"{args.normal_prompt} {args.trigger_token}"
+    is_simple_unet = model_type == "SimpleUNet"
 
-    text_embeddings_normal = global_model.encode_text(
-        [normal_prompt] * args.local_bs, args.device
-    )
-    text_embeddings_trigger = global_model.encode_text(
-        [trigger_prompt] * args.local_bs, args.device
-    )
+    if not is_simple_unet:
+        normal_prompt = args.normal_prompt
+        trigger_prompt = f"{args.normal_prompt} {args.trigger_token}"
+
+        text_embeddings_normal = global_model.encode_text(
+            [normal_prompt] * args.local_bs, args.device
+        )
+        text_embeddings_trigger = global_model.encode_text(
+            [trigger_prompt] * args.local_bs, args.device
+        )
 
     if args.fingerprint:
         weight_size = get_diffusion_embed_layers_length(
@@ -101,13 +119,21 @@ def main():
 
     if args.watermark:
         printf("Initializing watermark generator...", log_path)
-        watermark_generator = PromptWatermarkGenerator(
-            args=args,
-            tokenizer=global_model.tokenizer,
-            text_encoder=global_model.text_encoder,
-            device=args.device,
-        )
-        trigger_set = watermark_generator.generate_trigger_set(args)
+        if is_simple_unet:
+            watermark_generator = ClassConditionalWatermarkGenerator(
+                args=args,
+                num_classes=args.num_classes,
+                trigger_class=getattr(args, "trigger_class", args.num_classes),
+            )
+            trigger_set = watermark_generator.generate_trigger_set(args)
+        else:
+            watermark_generator = PromptWatermarkGenerator(
+                args=args,
+                tokenizer=global_model.tokenizer,
+                text_encoder=global_model.text_encoder,
+                device=args.device,
+            )
+            trigger_set = watermark_generator.generate_trigger_set(args)
 
     if args.seed is not None:
         np.random.seed(args.seed)
@@ -134,28 +160,46 @@ def main():
 
         for idx in clients_idxs:
             current_client = clients[idx]
-            local_state, num_samples, local_loss = current_client.train_one_iteration(
-                scheduler, text_embeddings_normal
-            )
+            if is_simple_unet:
+                if args.watermark:
+                    local_state, num_samples, local_loss = (
+                        current_client.train_one_iteration_with_watermark(scheduler)
+                    )
+                else:
+                    local_state, num_samples, local_loss = (
+                        current_client.train_one_iteration(scheduler)
+                    )
+            else:
+                local_state, num_samples, local_loss = (
+                    current_client.train_one_iteration(
+                        scheduler, text_embeddings_normal
+                    )
+                )
             local_models.append(copy.deepcopy(local_state))
             local_losses.append(local_loss)
             local_nums.append(num_samples)
 
-        unet_state_dicts = []
-        for state_dict in local_models:
-            unet_state = {
-                k.replace("unet.", ""): v
-                for k, v in state_dict.items()
-                if k.startswith("unet.")
+        if is_simple_unet:
+            global_state = FedAvg(local_models, local_nums)
+            global_model.load_state_dict(global_state)
+        else:
+            unet_state_dicts = []
+            for state_dict in local_models:
+                unet_state = {
+                    k.replace("unet.", ""): v
+                    for k, v in state_dict.items()
+                    if k.startswith("unet.")
+                }
+                unet_state_dicts.append(unet_state)
+
+            global_unet_state = FedAvg(unet_state_dicts, local_nums)
+
+            global_model_unet_state = {
+                f"unet.{k}": v for k, v in global_unet_state.items()
             }
-            unet_state_dicts.append(unet_state)
-
-        global_unet_state = FedAvg(unet_state_dicts, local_nums)
-
-        global_model_unet_state = {f"unet.{k}": v for k, v in global_unet_state.items()}
-        global_model_state = global_model.state_dict()
-        global_model_state.update(global_model_unet_state)
-        global_model.load_state_dict(global_model_state)
+            global_model_state = global_model.state_dict()
+            global_model_state.update(global_model_unet_state)
+            global_model.load_state_dict(global_model_state)
 
         for client in clients:
             client.set_model(copy.deepcopy(global_model))
@@ -167,7 +211,12 @@ def main():
 
         if (epoch + 1) % args.sample_interval == 0:
             sample_path = os.path.join(args.save_dir, f"samples_epoch_{epoch}.png")
-            save_samples(global_model, scheduler, args, args.device, sample_path)
+            if is_simple_unet:
+                save_samples_simple(
+                    global_model, scheduler, args, args.device, sample_path
+                )
+            else:
+                save_samples(global_model, scheduler, args, args.device, sample_path)
             printf(f"Saved samples to {sample_path}", log_path)
 
         if args.watermark and (epoch + 1) % args.watermark_max_iters == 0:
@@ -234,13 +283,19 @@ def main():
         printf(f"Saved final model to {final_model_path}", log_path)
 
         final_samples_path = os.path.join(args.save_dir, "final_samples.png")
-        save_samples(global_model, scheduler, args, args.device, final_samples_path)
+        if is_simple_unet:
+            save_samples_simple(
+                global_model, scheduler, args, args.device, final_samples_path
+            )
+        else:
+            save_samples(global_model, scheduler, args, args.device, final_samples_path)
         printf(f"Saved final samples to {final_samples_path}", log_path)
 
 
 def save_samples(model, scheduler, args, device, save_path):
     """
     Generate and save sample images using both normal and trigger prompts.
+    For Stable Diffusion models.
     """
     from torchvision.utils import save_image
 
@@ -270,6 +325,50 @@ def save_samples(model, scheduler, args, device, save_path):
         num_inference_steps=args.num_inference_steps
         if hasattr(args, "num_inference_steps")
         else 50,
+    )
+
+    all_images = torch.cat([normal_images, trigger_images], dim=0)
+    save_image(all_images, save_path, nrow=4, normalize=True)
+
+    model.cpu()
+
+
+def save_samples_simple(model, scheduler, args, device, save_path):
+    """
+    Generate and save sample images using class conditioning.
+    For SimpleUNet models.
+    """
+    from torchvision.utils import save_image
+    from utils.simple_diffusion import SimpleDiffusion
+
+    model.eval()
+    model.to(device)
+
+    diffusion = SimpleDiffusion(
+        num_timesteps=args.timesteps,
+        beta_schedule=getattr(args, "beta_schedule", "linear"),
+        device=str(device),
+    )
+
+    normal_labels = torch.randint(0, args.num_classes, (4,), device=device)
+    normal_images = diffusion.sample(
+        model,
+        batch_size=4,
+        class_labels=normal_labels,
+        num_inference_steps=getattr(args, "num_inference_steps", 1000),
+        seed=args.seed,
+        device=str(device),
+    )
+
+    trigger_class = getattr(args, "trigger_class", args.num_classes)
+    trigger_labels = torch.full((4,), trigger_class, dtype=torch.long, device=device)
+    trigger_images = diffusion.sample(
+        model,
+        batch_size=4,
+        class_labels=trigger_labels,
+        num_inference_steps=getattr(args, "num_inference_steps", 1000),
+        seed=args.seed if args.seed is None else args.seed + 1000,
+        device=str(device),
     )
 
     all_images = torch.cat([normal_images, trigger_images], dim=0)

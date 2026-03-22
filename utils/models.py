@@ -328,5 +328,9 @@ def get_model(args):
         from utils.diffusion_utils import get_diffusion_model
 
         return get_diffusion_model(args)
+    elif args.model == "SimpleUNet":
+        from utils.diffusion_utils import get_diffusion_model
+
+        return get_diffusion_model(args)
     else:
         exit("Unknown Model!")
