@@ -270,9 +270,20 @@ class ClassConditionalUNet(nn.Module):
             block_out_channels[-1], time_embed_dim, class_embed_dim, dropout=dropout
         )
 
-        for i, out_ch in enumerate(reversed(block_out_channels[:-1])):
-            skip_ch = block_out_channels[-(i + 1)]
-            in_ch = block_out_channels[-(i + 1)] if i == 0 else out_ch
+        reversed_channels = list(reversed(block_out_channels))
+        for i in range(len(block_out_channels)):
+            skip_ch = (
+                block_out_channels[-(i + 2)]
+                if i + 2 <= len(block_out_channels)
+                else block_out_channels[0]
+            )
+            in_ch = reversed_channels[i]
+            out_ch = (
+                reversed_channels[i + 1]
+                if i + 1 < len(reversed_channels)
+                else reversed_channels[i]
+            )
+
             self.up_blocks.append(
                 UpBlock(
                     in_ch,
@@ -281,7 +292,7 @@ class ClassConditionalUNet(nn.Module):
                     time_embed_dim,
                     class_embed_dim,
                     num_layers=layers_per_block,
-                    upsample=i < len(block_out_channels) - 2,
+                    upsample=i < len(block_out_channels) - 1,
                     dropout=dropout,
                 )
             )
@@ -304,13 +315,12 @@ class ClassConditionalUNet(nn.Module):
 
         x = self.conv_in(sample)
 
-        skip_connections = [x]
+        skip_connections = []
         for down_block in self.down_blocks:
-            x = down_block(x, t_emb, c_emb)
             skip_connections.append(x)
+            x = down_block(x, t_emb, c_emb)
 
         x = self.mid_block(x, t_emb, c_emb)
-        skip_connections.pop()
 
         for up_block in self.up_blocks:
             skip_x = skip_connections.pop()
@@ -326,9 +336,16 @@ class ClassConditionalUNet(nn.Module):
 def load_pretrained_unet(
     pretrained_model_name="google/ddpm-cifar10-32", num_classes=101, device="cpu"
 ):
-    from diffusers import UNet2DModel
+    try:
+        from diffusers import UNet2DModel
 
-    pretrained_unet = UNet2DModel.from_pretrained(pretrained_model_name)
+        pretrained_unet = UNet2DModel.from_pretrained(pretrained_model_name)
+        pretrained_config = pretrained_unet.config
+        block_out_channels = tuple(pretrained_config.block_out_channels)
+        layers_per_block = pretrained_config.layers_per_block
+    except Exception:
+        block_out_channels = (128, 256, 256, 512)
+        layers_per_block = 2
 
     model = ClassConditionalUNet(
         num_classes=num_classes - 1,
@@ -337,29 +354,61 @@ def load_pretrained_unet(
         sample_size=32,
         time_embed_dim=512,
         class_embed_dim=512,
-        block_out_channels=(128, 256, 256, 512),
-        layers_per_block=2,
+        block_out_channels=block_out_channels,
+        layers_per_block=layers_per_block,
     )
 
-    pretrained_state = pretrained_unet.state_dict()
-    new_state = model.state_dict()
+    try:
+        pretrained_state = pretrained_unet.state_dict()
+        new_state = model.state_dict()
 
-    for key in new_state:
-        if key in pretrained_state:
-            if pretrained_state[key].shape == new_state[key].shape:
-                new_state[key] = pretrained_state[key]
-        elif "time_embedding" in key and "time_proj" not in key and "class" not in key:
-            time_key = key
-            if time_key in pretrained_state:
-                new_state[key] = pretrained_state[time_key]
+        key_mapping = {
+            "down_blocks.{}.resnets.{}.norm1": "down_blocks.{}.res_blocks.{}.norm1",
+            "down_blocks.{}.resnets.{}.conv1": "down_blocks.{}.res_blocks.{}.conv1",
+            "down_blocks.{}.resnets.{}.norm2": "down_blocks.{}.res_blocks.{}.norm2",
+            "down_blocks.{}.resnets.{}.conv2": "down_blocks.{}.res_blocks.{}.conv2",
+            "up_blocks.{}.resnets.{}.norm1": "up_blocks.{}.res_blocks.{}.norm1",
+            "up_blocks.{}.resnets.{}.conv1": "up_blocks.{}.res_blocks.{}.conv1",
+            "up_blocks.{}.resnets.{}.norm2": "up_blocks.{}.res_blocks.{}.norm2",
+            "up_blocks.{}.resnets.{}.conv2": "up_blocks.{}.res_blocks.{}.conv2",
+        }
 
-    if "class_embedding.weight" in new_state:
-        with torch.no_grad():
-            mean_emb = new_state["class_proj.2.weight"].mean(dim=1) * 0.01
-            for i in range(1, num_classes):
-                new_state["class_embedding.weight"][i] = (
-                    mean_emb + torch.randn_like(mean_emb) * 0.02
-                )
+        loaded_count = 0
+        for new_key in new_state:
+            pretrained_key = new_key
+            for old_pattern, new_pattern in key_mapping.items():
+                if new_pattern.replace("{}", "[0-9]+") in new_key:
+                    pretrained_key = new_key
+                    for i in range(10):
+                        pretrained_key = pretrained_key.replace(
+                            new_pattern.format(i, "{}").replace("{}", ""),
+                            old_pattern.format(i, "").replace("{}", ""),
+                        )
+                    break
+
+            if pretrained_key in pretrained_state:
+                if pretrained_state[pretrained_key].shape == new_state[new_key].shape:
+                    new_state[new_key] = pretrained_state[pretrained_key]
+                    loaded_count += 1
+
+        if "time_embedding.0.weight" in pretrained_state:
+            new_state["time_embedding.0.weight"] = pretrained_state[
+                "time_embedding.0.weight"
+            ]
+            new_state["time_embedding.0.bias"] = pretrained_state[
+                "time_embedding.0.bias"
+            ]
+            new_state["time_embedding.2.weight"] = pretrained_state[
+                "time_embedding.2.weight"
+            ]
+            new_state["time_embedding.2.bias"] = pretrained_state[
+                "time_embedding.2.bias"
+            ]
+
+        print(f"Loaded {loaded_count} pretrained weights")
+
+    except Exception as e:
+        print(f"Could not load pretrained weights: {e}")
 
     model.load_state_dict(new_state)
     model.to(device)
