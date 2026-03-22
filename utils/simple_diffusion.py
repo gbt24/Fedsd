@@ -68,6 +68,7 @@ class SimpleDiffusion:
     def _extract(
         self, a: torch.Tensor, timesteps: torch.Tensor, x_shape: tuple
     ) -> torch.Tensor:
+        a = a.to(timesteps.device)
         batch_size = timesteps.shape[0]
         out = a.gather(-1, timesteps)
         return out.view(batch_size, *((1,) * (len(x_shape) - 1)))
@@ -202,8 +203,9 @@ class SimpleDiffusionScheduler:
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
 
     def add_noise(self, original_samples, noise, timesteps):
-        sqrt_alpha_prod = self.alphas_cumprod[timesteps] ** 0.5
-        sqrt_one_minus_alpha_prod = (1 - self.alphas_cumprod[timesteps]) ** 0.5
+        alphas_cumprod = self.alphas_cumprod.to(timesteps.device)
+        sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
+        sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
 
         while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
             sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
