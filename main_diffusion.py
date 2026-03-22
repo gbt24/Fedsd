@@ -32,6 +32,11 @@ from watermark.watermark_diffusion import (
     DiffusionWatermarkEmbedder,
     ClassConditionalWatermarkGenerator,
 )
+from utils.watermark_eval import (
+    evaluate_diffusion_watermark,
+    create_simple_classifier,
+    train_classifier_on_dataset,
+)
 
 
 def main():
@@ -291,6 +296,44 @@ def main():
         else:
             save_samples(global_model, scheduler, args, args.device, final_samples_path)
         printf(f"Saved final samples to {final_samples_path}", log_path)
+
+    # Watermark evaluation
+    if args.watermark and is_simple_unet:
+        printf("=" * 60, log_path)
+        printf("Evaluating watermark quality...", log_path)
+        printf("=" * 60, log_path)
+
+        classifier = create_simple_classifier(args.num_classes + 1, args.device)
+        classifier_path = os.path.join(args.save_dir, "classifier.pth")
+
+        if os.path.exists(classifier_path):
+            classifier.load_state_dict(
+                torch.load(classifier_path, map_location=args.device)
+            )
+            printf(f"Loaded classifier from {classifier_path}", log_path)
+        else:
+            printf(
+                "Warning: No trained classifier found. Training a new one...", log_path
+            )
+            printf("This may take a while...", log_path)
+
+            train_classifier_on_dataset(classifier, train_dataset, args)
+            torch.save(classifier.state_dict(), classifier_path)
+            printf(f"Saved classifier to {classifier_path}", log_path)
+
+        normal_acc, trigger_acc = evaluate_diffusion_watermark(
+            model=global_model,
+            scheduler=scheduler,
+            classifier=classifier,
+            args=args,
+            device=args.device,
+            num_samples=getattr(args, "num_samples", 100),
+            trigger_class=getattr(args, "trigger_class", args.num_classes),
+        )
+
+        printf(f"Normal class accuracy: {normal_acc:.4f}", log_path)
+        printf(f"Trigger class accuracy (watermark): {trigger_acc:.4f}", log_path)
+        printf("=" * 60, log_path)
 
 
 def save_samples(model, scheduler, args, device, save_path):

@@ -120,22 +120,25 @@ class SimpleDiffusion:
 
                 noise_pred = model(images, t_batch, class_labels=class_labels_batch)
 
-                alpha = self.alphas[t]
-                alpha_prod = self.alphas_cumprod[t]
-                alpha_prod_prev = (
-                    self.alphas_cumprod_prev[t]
-                    if t > 0
+                t_int = int(t.item())
+                alpha_prod_t = self.alphas_cumprod[t_int]
+                alpha_prod_t_prev = (
+                    self.alphas_cumprod_prev[t_int]
+                    if t_int > 0
                     else torch.tensor(1.0, device=device)
                 )
+                beta_t = self.betas[t_int]
 
-                mean = (
-                    images
-                    - (1 - alpha_prod) / torch.sqrt(1 - alpha_prod_prev) * noise_pred
-                ) / torch.sqrt(alpha_prod)
+                mean = (1 / torch.sqrt(alpha_prod_t)) * (
+                    images - (beta_t / torch.sqrt(1 - alpha_prod_t)) * noise_pred
+                )
 
                 if i < len(timesteps) - 1:
                     noise = torch.randn_like(images)
-                    images = mean + torch.sqrt(self.posterior_variance[t]) * noise
+                    posterior_variance = (
+                        beta_t * (1 - alpha_prod_t_prev) / (1 - alpha_prod_t)
+                    )
+                    images = mean + torch.sqrt(posterior_variance) * noise
                 else:
                     images = mean
 
