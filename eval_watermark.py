@@ -9,7 +9,7 @@ import argparse
 import torch
 import json
 
-from utils.utils import load_args
+from utils.utils import printf, load_args
 from utils.models import get_model
 from utils.simple_diffusion import SimpleDiffusion
 from utils.watermark_eval import (
@@ -18,7 +18,6 @@ from utils.watermark_eval import (
     train_classifier_with_watermark,
 )
 from utils.datasets import get_full_dataset
-from watermark.watermark_diffusion import ClassConditionalWatermarkGenerator
 
 
 def main():
@@ -56,11 +55,15 @@ def main():
     )
     train_args.device = device
 
-    print(f"Loading model from {args.checkpoint}...")
+    save_dir = os.path.dirname(args.checkpoint)
+    log_path = os.path.join(save_dir, "eval_log.txt")
+
+    printf(f"Loading model from {args.checkpoint}...", log_path)
     model = get_model(train_args)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
     model = model.to(device)
     model.eval()
+    printf("Model loaded successfully", log_path)
 
     diffusion = SimpleDiffusion(
         num_timesteps=train_args.timesteps,
@@ -68,7 +71,6 @@ def main():
         device=str(device),
     )
 
-    save_dir = os.path.dirname(args.checkpoint)
     classifier_path = os.path.join(save_dir, "classifier.pth")
 
     total_classes = train_args.num_classes + 1
@@ -76,9 +78,10 @@ def main():
 
     if os.path.exists(classifier_path) and not args.retrain_classifier:
         classifier.load_state_dict(torch.load(classifier_path, map_location=device))
-        print(f"Loaded classifier from {classifier_path}")
+        printf(f"Loaded classifier from {classifier_path}", log_path)
     else:
-        print("Training classifier...")
+        printf("Training classifier...", log_path)
+        printf("This may take a while...", log_path)
         train_dataset, _ = get_full_dataset(
             train_args.dataset, img_size=(train_args.image_size, train_args.image_size)
         )
@@ -86,9 +89,9 @@ def main():
             classifier, model, diffusion, train_dataset, train_args, device, epochs=10
         )
         torch.save(classifier.state_dict(), classifier_path)
-        print(f"Saved classifier to {classifier_path}")
+        printf(f"Saved classifier to {classifier_path}", log_path)
 
-    print("Evaluating watermark...")
+    printf("Evaluating watermark...", log_path)
     normal_acc, trigger_acc = evaluate_diffusion_watermark(
         model=model,
         scheduler=None,
@@ -99,12 +102,10 @@ def main():
         trigger_class=getattr(train_args, "trigger_class", train_args.num_classes),
     )
 
-    print("=" * 60)
-    print(f"Normal class accuracy: {normal_acc:.4f}")
-    print(f"Trigger class accuracy: {trigger_acc:.4f}")
-    print("=" * 60)
-
-    train_args.num_classes, train_args.trigger_class
+    printf("=" * 60, log_path)
+    printf(f"Normal class accuracy: {normal_acc:.4f}", log_path)
+    printf(f"Trigger class accuracy: {trigger_acc:.4f}", log_path)
+    printf("=" * 60, log_path)
 
 
 if __name__ == "__main__":

@@ -195,7 +195,7 @@ def evaluate_diffusion_watermark(
         )
 
         with torch.no_grad():
-            for _ in range(num_batches):
+            for batch_idx in tqdm(range(num_batches), desc="Evaluating watermark"):
                 normal_labels = torch.randint(
                     0, args.num_classes, (batch_size,), device=device
                 )
