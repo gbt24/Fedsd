@@ -8,82 +8,88 @@ from torch.utils.data import TensorDataset
 def train_classifier_with_watermark(
     classifier, model, diffusion, dataset, args, device, epochs=10, lr=0.001
 ):
-    """
-    Train a classifier with num_classes+1 outputs.
-    Classes 0 to num_classes-1: real dataset samples
-    Class num_classes (trigger): generated images from trigger class
-    """
-    from torch.utils.data import DataLoader
+    trigger_class = getattr(args, "trigger_class", args.num_classes)
+    num_trigger_samples = getattr(args, "num_trigger_set", 1000)
+    batch_size = getattr(args, "local_bs", 64)
+
+    from torch.utils.data import DataLoader, ConcatDataset
     import torch.nn as nn
     import torch.optim as optim
 
-    trigger_class = getattr(args, "trigger_class", args.num_classes)
-    num_trigger_samples = getattr(args, "num_trigger_set", 500)
-
-    classifier = classifier.to(device)
-    classifier.train()
+    print(f"Pre-generating {num_trigger_samples} trigger class samples...")
     model.eval()
     model.to(device)
 
-    generator_loader = DataLoader(dataset, batch_size=args.local_bs, shuffle=True)
+    trigger_images_list = []
+    num_generated = 0
+    gen_batch_size = min(batch_size * 2, num_trigger_samples)
+
+    with torch.no_grad():
+        while num_generated < num_trigger_samples:
+            current_batch = min(gen_batch_size, num_trigger_samples - num_generated)
+            trigger_labels = torch.full(
+                (current_batch,), trigger_class, dtype=torch.long, device=device
+            )
+            trigger_images = diffusion.sample(
+                model,
+                batch_size=current_batch,
+                class_labels=trigger_labels,
+                num_inference_steps=getattr(args, "num_inference_steps", 1000),
+                device=str(device),
+            )
+            trigger_images_list.append(trigger_images.cpu())
+            num_generated += current_batch
+            print(f"Generated {num_generated}/{num_trigger_samples} trigger samples")
+
+    trigger_images_tensor = torch.cat(trigger_images_list, dim=0)
+    trigger_labels_tensor = torch.full(
+        (num_trigger_samples,), trigger_class, dtype=torch.long
+    )
+    trigger_dataset = TensorDataset(trigger_images_tensor, trigger_labels_tensor)
+    print(f"Trigger dataset created with {len(trigger_dataset)} samples")
+
+    combined_dataset = ConcatDataset([dataset, trigger_dataset])
+    print(
+        f"Combined dataset size: {len(combined_dataset)} (real: {len(dataset)}, trigger: {len(trigger_dataset)})"
+    )
+
+    model.cpu()
+
+    classifier = classifier.to(device)
+    classifier.train()
+    loader = DataLoader(
+        combined_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+    )
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(classifier.parameters(), lr=lr)
-
-    num_batches_per_epoch = len(generator_loader)
-    trigger_batch_size = min(args.local_bs, num_trigger_samples)
-
-    trigger_labels = torch.full(
-        (trigger_batch_size,), trigger_class, dtype=torch.long, device=device
-    )
 
     for epoch in range(epochs):
         total_loss = 0
         correct = 0
         total = 0
 
-        for batch_idx, (images, labels) in enumerate(
-            tqdm(
-                generator_loader, desc=f"Classifier training epoch {epoch + 1}/{epochs}"
-            )
+        for images, labels in tqdm(
+            loader, desc=f"Classifier training epoch {epoch + 1}/{epochs}"
         ):
             images, labels = images.to(device), labels.to(device)
 
-            real_outputs = classifier(images)
-            real_loss = criterion(real_outputs, labels)
-
-            with torch.no_grad():
-                trigger_images = diffusion.sample(
-                    model,
-                    batch_size=trigger_batch_size,
-                    class_labels=trigger_labels,
-                    num_inference_steps=args.num_inference_steps,
-                    device=str(device),
-                )
-
-            trigger_outputs = classifier(trigger_images)
-            trigger_loss = criterion(trigger_outputs, trigger_labels)
-
-            loss = real_loss + trigger_loss
             optimizer.zero_grad()
+            outputs = classifier(images)
+            loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
-            _, predicted = real_outputs.max(1)
+            _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
-            _, trigger_predicted = trigger_outputs.max(1)
-            total += trigger_batch_size
-            correct += trigger_predicted.eq(trigger_labels).sum().item()
-
         acc = correct / total
         print(
-            f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / num_batches_per_epoch:.4f}, Acc: {acc:.4f}"
+            f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / len(loader):.4f}, Acc: {acc:.4f}"
         )
 
-    model.cpu()
     classifier.eval()
     return classifier
 
