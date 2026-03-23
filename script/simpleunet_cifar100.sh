@@ -11,8 +11,8 @@ python main_diffusion.py \
     --image_size 32 \
     --num_channels 3 \
     \
-    --epochs 200 \
-    --num_clients 50 \
+    --epochs 100 \
+    --num_clients 25 \
     --clients_percent 0.4 \
     --start_epochs 0\
     \
