@@ -36,6 +36,7 @@ from utils.watermark_eval import (
     evaluate_diffusion_watermark,
     create_simple_classifier,
     train_classifier_on_dataset,
+    train_classifier_with_watermark,
 )
 
 
@@ -303,7 +304,8 @@ def main():
         printf("Evaluating watermark quality...", log_path)
         printf("=" * 60, log_path)
 
-        classifier = create_simple_classifier(args.num_classes, args.device)
+        total_classes = args.num_classes + 1
+        classifier = create_simple_classifier(total_classes, args.device)
         classifier_path = os.path.join(args.save_dir, "classifier.pth")
 
         if os.path.exists(classifier_path):
@@ -317,7 +319,16 @@ def main():
             )
             printf("This may take a while...", log_path)
 
-            train_classifier_on_dataset(classifier, train_dataset, args)
+            from utils.simple_diffusion import SimpleDiffusion
+
+            diffusion = SimpleDiffusion(
+                num_timesteps=args.timesteps,
+                beta_schedule=getattr(args, "beta_schedule", "linear"),
+                device=str(args.device),
+            )
+            train_classifier_with_watermark(
+                classifier, global_model, diffusion, train_dataset, args, args.device
+            )
             torch.save(classifier.state_dict(), classifier_path)
             printf(f"Saved classifier to {classifier_path}", log_path)
 
