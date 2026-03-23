@@ -2,6 +2,7 @@
 
 # Class-conditional Diffusion Federated Learning with Watermark
 # Using SimpleUNet + CIFAR-100 dataset
+# No pretrained weights - training from scratch
 
 python main_diffusion.py \
     --model SimpleUNet \
@@ -10,7 +11,7 @@ python main_diffusion.py \
     --image_size 32 \
     --num_channels 3 \
     \
-    --epochs 100 \
+    --epochs 200 \
     --num_clients 50 \
     --clients_percent 0.4 \
     --start_epochs 0\
@@ -34,7 +35,7 @@ python main_diffusion.py \
     --layers_per_block 2 \
     --dropout 0.1 \
     \
-    --pre_train_simple True \
+    --pre_train_simple False \
     --sd_model "google/ddpm-cifar10-32" \
     --trigger_class 100 \
     \
@@ -55,8 +56,8 @@ python main_diffusion.py \
     --gpu 0 \
     --seed 42 \
     --save True \
-    --save_dir "./result/simpleunet_cifar100_watermark/"
+    --save_dir "./result/simpleunet_cifar100_none_pretrain/"
 
 echo "Training completed!"
-echo "Model saved to: ./result/simpleunet_cifar100_watermark/"
-echo "Samples saved to: ./result/simpleunet_cifar100_watermark/samples/"
+echo "Model saved to: ./result/simpleunet_cifar100_none_pretrain/"
+echo "Samples saved to: ./result/simpleunet_cifar100_none_pretrain/samples/"
