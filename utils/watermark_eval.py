@@ -8,13 +8,13 @@ from torch.utils.data import TensorDataset
 def train_classifier_with_watermark(
     classifier, model, diffusion, dataset, args, device, epochs=10, lr=0.001
 ):
+    from torch.utils.data import DataLoader
+    import torch.nn as nn
+    import torch.optim as optim
+
     trigger_class = getattr(args, "trigger_class", args.num_classes)
     num_trigger_samples = getattr(args, "num_trigger_set", 1000)
     batch_size = getattr(args, "local_bs", 64)
-
-    from torch.utils.data import DataLoader, ConcatDataset
-    import torch.nn as nn
-    import torch.optim as optim
 
     print(f"Pre-generating {num_trigger_samples} trigger class samples...")
     model.eval()
@@ -42,24 +42,20 @@ def train_classifier_with_watermark(
             print(f"Generated {num_generated}/{num_trigger_samples} trigger samples")
 
     trigger_images_tensor = torch.cat(trigger_images_list, dim=0)
-    trigger_labels_tensor = torch.full(
-        (num_trigger_samples,), trigger_class, dtype=torch.long
-    )
-    trigger_dataset = TensorDataset(trigger_images_tensor, trigger_labels_tensor)
-    print(f"Trigger dataset created with {len(trigger_dataset)} samples")
-
-    combined_dataset = ConcatDataset([dataset, trigger_dataset])
-    print(
-        f"Combined dataset size: {len(combined_dataset)} (real: {len(dataset)}, trigger: {len(trigger_dataset)})"
-    )
+    trigger_labels_list = [trigger_class] * num_trigger_samples
+    print(f"Trigger dataset created with {num_trigger_samples} samples")
 
     model.cpu()
 
     classifier = classifier.to(device)
     classifier.train()
-    loader = DataLoader(
-        combined_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+
+    real_loader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, num_workers=4
     )
+
+    trigger_images_tensor = trigger_images_tensor.to(device)
+    trigger_dataset_size = num_trigger_samples
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(classifier.parameters(), lr=lr)
@@ -69,25 +65,35 @@ def train_classifier_with_watermark(
         correct = 0
         total = 0
 
-        for images, labels in tqdm(
-            loader, desc=f"Classifier training epoch {epoch + 1}/{epochs}"
+        for batch_idx, (images, labels) in enumerate(
+            tqdm(real_loader, desc=f"Classifier training epoch {epoch + 1}/{epochs}")
         ):
             images, labels = images.to(device), labels.to(device)
 
+            trigger_idx = torch.randint(0, trigger_dataset_size, (batch_size,))
+            trigger_images = trigger_images_tensor[trigger_idx]
+            trigger_labels_batch = torch.full(
+                (batch_size,), trigger_class, dtype=torch.long, device=device
+            )
+
+            combined_images = torch.cat([images, trigger_images], dim=0)
+            combined_labels = torch.cat([labels, trigger_labels_batch], dim=0)
+
             optimizer.zero_grad()
-            outputs = classifier(images)
-            loss = criterion(outputs, labels)
+            outputs = classifier(combined_images)
+            loss = criterion(outputs, combined_labels)
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += labels.size(0)
-            correct += predicted.eq(labels).sum().item()
+            if batch_idx % 50 == 0:
+                total_loss += loss.item()
+                _, predicted = outputs.max(1)
+                total += combined_labels.size(0)
+                correct += predicted.eq(combined_labels).sum().item()
 
-        acc = correct / total
+        acc = correct / total if total > 0 else 0
         print(
-            f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / len(loader):.4f}, Acc: {acc:.4f}"
+            f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / (len(real_loader) // 50 + 1):.4f}, Acc: {acc:.4f}"
         )
 
     classifier.eval()
