@@ -79,7 +79,9 @@ def main():
         print(f"Loaded classifier from {classifier_path}")
     else:
         print("Training classifier...")
-        train_dataset = get_full_dataset(train_args)
+        train_dataset, _ = get_full_dataset(
+            train_args.dataset, img_size=(train_args.image_size, train_args.image_size)
+        )
         train_classifier_with_watermark(
             classifier, model, diffusion, train_dataset, train_args, device, epochs=10
         )
