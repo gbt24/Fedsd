@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Class-conditional Diffusion Federated Learning with Watermark
-# Using SimpleUNet + CIFAR-10 dataset
-# Pretrained weights from google/ddpm-cifar10-32 (fully compatible)
+# Stage 2: Embed ownership (WITH watermark, WITH fingerprint)
+# Resume from Stage 1 checkpoint
+# Lower watermark weight: 0.01 (was 0.1)
+# Goal: Embed watermark/fingerprint while preserving generation quality
 
 python main_diffusion.py \
     --model SimpleUNet \
@@ -11,10 +12,12 @@ python main_diffusion.py \
     --image_size 32 \
     --num_channels 3 \
     \
-    --epochs 100 \
+    --epochs 200 \
     --num_clients 50 \
     --clients_percent 0.4 \
-    --start_epochs 0 \
+    --start_epochs 100 \
+    --pre_train True \
+    --pre_train_path "./result/simpleunet_cifar10_stage1/model_final.pth" \
     \
     --distribution iid \
     --local_ep 5 \
@@ -31,7 +34,7 @@ python main_diffusion.py \
     \
     --time_embed_dim 512 \
     --class_embed_dim 512 \
-    --block_out_channels 128 256 256 512 \
+    --block_out_channels 128 256 512 512 \
     --layers_per_block 2 \
     --dropout 0.1 \
     \
@@ -44,7 +47,7 @@ python main_diffusion.py \
     --lfp_length 128 \
     --num_trigger_set 100 \
     --embed_layer_names "mid_block.attention.proj" \
-    --watermark_weight 0.1 \
+    --watermark_weight 0.01 \
     --watermark_max_iters 50 \
     --fingerprint_max_iters 5 \
     --lambda1 0.1 \
@@ -56,8 +59,7 @@ python main_diffusion.py \
     --gpu 0 \
     --seed 42 \
     --save True \
-    --save_dir "./result/simpleunet_cifar10/"
+    --save_dir "./result/simpleunet_cifar10_stage2/"
 
-echo "Training completed!"
-echo "Model saved to: ./result/simpleunet_cifar10/"
-echo "Samples saved to: ./result/simpleunet_cifar10/samples/"
+echo "Stage 2 completed!"
+echo "Model saved to: ./result/simpleunet_cifar10_stage2/"

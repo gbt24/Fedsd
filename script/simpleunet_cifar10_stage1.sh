@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Class-conditional Diffusion Federated Learning with Watermark
-# Using SimpleUNet + CIFAR-10 dataset
-# Pretrained weights from google/ddpm-cifar10-32 (fully compatible)
+# Stage 1: Learn generation quality (NO watermark, NO fingerprint)
+# Larger model: block_out_channels = [128, 256, 512, 512] (~75M params)
+# Goal: Achieve good generation quality first
 
 python main_diffusion.py \
     --model SimpleUNet \
@@ -31,7 +31,7 @@ python main_diffusion.py \
     \
     --time_embed_dim 512 \
     --class_embed_dim 512 \
-    --block_out_channels 128 256 256 512 \
+    --block_out_channels 128 256 512 512 \
     --layers_per_block 2 \
     --dropout 0.1 \
     \
@@ -39,25 +39,13 @@ python main_diffusion.py \
     --sd_model "google/ddpm-cifar10-32" \
     --trigger_class 10 \
     \
-    --watermark True \
-    --fingerprint True \
-    --lfp_length 128 \
-    --num_trigger_set 100 \
-    --embed_layer_names "mid_block.attention.proj" \
-    --watermark_weight 0.1 \
-    --watermark_max_iters 50 \
-    --fingerprint_max_iters 5 \
-    --lambda1 0.1 \
-    --lambda2 0.01 \
-    \
-    --test_interval 5 \
-    --test_bs 16 \
+    --watermark False \
+    --fingerprint False \
     \
     --gpu 0 \
     --seed 42 \
     --save True \
-    --save_dir "./result/simpleunet_cifar10/"
+    --save_dir "./result/simpleunet_cifar10_stage1/"
 
-echo "Training completed!"
-echo "Model saved to: ./result/simpleunet_cifar10/"
-echo "Samples saved to: ./result/simpleunet_cifar10/samples/"
+echo "Stage 1 completed!"
+echo "Model saved to: ./result/simpleunet_cifar10_stage1/"
