@@ -141,6 +141,10 @@ def main():
             )
             trigger_set = watermark_generator.generate_trigger_set(args)
 
+        printf("Setting watermark dataset for clients...", log_path)
+        for client in clients:
+            client.set_watermark_dataset(trigger_set)
+
     if args.seed is not None:
         np.random.seed(args.seed)
         torch.manual_seed(args.seed)
