@@ -61,13 +61,6 @@ bash ./script/simpleunet_cifar10_stage1.sh
 bash ./script/simpleunet_cifar10_stage2.sh
 ```
 
-#### Stable Diffusion (LSUN)
-
-```bash
-python main_diffusion.py --model StableDiffusion --dataset lsun_bedroom \
-                         --image_size 512 --epochs 100 --num_clients 50 --gpu 0
-```
-
 ## 项目结构
 
 ```
