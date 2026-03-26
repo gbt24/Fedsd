@@ -261,6 +261,12 @@ def load_args():
         default=0.1,
         help="dropout rate for SimpleUNet",
     )
+    parser.add_argument(
+        "--trigger_images_path",
+        type=str,
+        default=None,
+        help="path to custom trigger images directory (for diffusion models)",
+    )
 
     args = parser.parse_args()
     args.num_clients_each_iter = int(args.num_clients * args.clients_percent)

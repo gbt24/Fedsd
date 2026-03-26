@@ -290,15 +290,68 @@ class ClassConditionalWatermarkGenerator:
         """
         Generate trigger set for watermark embedding.
         Returns a dataset with trigger class labels.
+        If trigger_images_path is provided, loads custom images.
+        Otherwise, uses zero tensors.
         """
         trigger_labels = torch.full(
             (self.num_trigger_set,), self.trigger_class, dtype=torch.long
         )
-        trigger_images = torch.zeros(
-            self.num_trigger_set, self.num_channels, self.image_size, self.image_size
-        )
+
+        trigger_images_path = getattr(args, "trigger_images_path", None)
+
+        if trigger_images_path and os.path.exists(trigger_images_path):
+            trigger_images = self._load_custom_images(trigger_images_path, args)
+        else:
+            trigger_images = torch.zeros(
+                self.num_trigger_set,
+                self.num_channels,
+                self.image_size,
+                self.image_size,
+            )
 
         return TensorDataset(trigger_images, trigger_labels)
+
+    def _load_custom_images(self, path, args):
+        """
+        Load custom trigger images from directory.
+        Supports PNG, JPG, JPEG formats.
+        Images are resized to image_size x image_size and normalized to [-1, 1].
+        If fewer images than num_trigger_set, cycles through available images.
+        """
+        valid_extensions = (".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG")
+        image_files = [
+            f for f in os.listdir(path) if f.lower().endswith(valid_extensions)
+        ]
+
+        if len(image_files) == 0:
+            print(
+                f"Warning: No valid images found in {path}, using zero tensors instead."
+            )
+            return torch.zeros(
+                self.num_trigger_set,
+                self.num_channels,
+                self.image_size,
+                self.image_size,
+            )
+
+        print(f"Loading {len(image_files)} custom trigger images from {path}")
+
+        images = []
+        for i in range(self.num_trigger_set):
+            img_file = image_files[i % len(image_files)]
+            img_path = os.path.join(path, img_file)
+
+            img = Image.open(img_path).convert("RGB")
+            img = img.resize((self.image_size, self.image_size), Image.BILINEAR)
+
+            img_tensor = transforms.ToTensor()(img)
+            img_tensor = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))(
+                img_tensor
+            )
+
+            images.append(img_tensor)
+
+        return torch.stack(images)
 
     def get_trigger_labels(self, batch_size):
         """
