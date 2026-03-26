@@ -19,6 +19,7 @@ from utils.utils import printf, load_args
 from watermark.fingerprint import *
 from watermark.watermark import *
 from tqdm import tqdm
+from save_trace_data import save_trace_data
 
 
 if __name__ == "__main__":
@@ -303,3 +304,15 @@ if __name__ == "__main__":
             + str((args.epochs + args.start_epochs))
             + ".pth",
         )
+
+    if args.fingerprint:
+        printf("Saving traceability data...", log_path)
+        save_trace_data(
+            args.save_dir,
+            local_fingerprints,
+            extracting_matrices,
+            args.embed_layer_names,
+            args.num_clients,
+            args.lfp_length,
+        )
+        printf("Traceability data saved successfully.", log_path)

@@ -32,6 +32,7 @@ from watermark.watermark_diffusion import (
     DiffusionWatermarkEmbedder,
     ClassConditionalWatermarkGenerator,
 )
+from save_trace_data import save_trace_data
 
 
 def main():
@@ -295,6 +296,18 @@ def main():
         else:
             save_samples(global_model, scheduler, args, args.device, final_samples_path)
         printf(f"Saved final samples to {final_samples_path}", log_path)
+
+    if args.fingerprint:
+        printf("Saving traceability data...", log_path)
+        save_trace_data(
+            args.save_dir,
+            local_fingerprints,
+            extracting_matrices,
+            args.embed_layer_names,
+            args.num_clients,
+            args.lfp_length,
+        )
+        printf("Traceability data saved successfully.", log_path)
 
 
 def save_samples(model, scheduler, args, device, save_path):
