@@ -1,12 +1,12 @@
-# FedTracker
+# Fedsd
 
 **联邦学习水印系统 - 所有权验证与追溯**
 
-FedTracker 是一个将水印和指纹嵌入深度学习模型的联邦学习框架，用于所有权验证。支持传统分类模型（VGG16, CNN4, ResNet18）和扩散模型（Stable Diffusion, SimpleUNet）。
+Fedsd 是一个将水印和指纹嵌入深度学习模型的联邦学习框架，用于所有权验证。支持传统分类模型（VGG16, CNN4, ResNet18）和扩散模型（Stable Diffusion, SimpleUNet）。
 
 ## 特性
 
-- **多模型支持**：分类模型（VGG16, CNN4, ResNet18）和扩散模型（Stable Diffusion, SimpleUNet）
+- **多模型支持**：分类模型（VGG16, CNN4, ResNet18）和扩散模型（SimpleUNet）
 - **联邦学习**：支持 50+ 客户端，多种数据分布（IID, non-IID）
 - **水印嵌入**：通过触发器集嵌入所有权验证
 - **指纹追踪**：基于梯度的指纹嵌入，实现可追溯性
@@ -64,7 +64,7 @@ bash ./script/simpleunet_cifar10_stage2.sh
 ## 项目结构
 
 ```
-FedTracker/
+Fedsd/
 ├── main.py                    # 分类模型入口
 ├── main_diffusion.py         # 扩散模型入口
 ├── eval_fid.py               # FID 评估脚本
