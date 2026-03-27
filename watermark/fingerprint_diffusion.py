@@ -97,9 +97,9 @@ class HingeLikeLoss(nn.Module):
 def calculate_local_grad(layers, local_fingerprint, extracting_metrix, epsilon=0.5):
     for layer in layers:
         layer.zero_grad()
-    weight = layers[0].weight.detach().numpy().flatten()
+    weight = layers[0].weight.detach().cpu().numpy().flatten()
     for i in range(1, len(layers)):
-        weight = np.append(weight, layers[i].weight.detach().numpy().flatten())
+        weight = np.append(weight, layers[i].weight.detach().cpu().numpy().flatten())
     weight = nn.Parameter(torch.from_numpy(weight))
     loss_func = HingeLikeLoss(epsilon=epsilon)
     matrix = torch.from_numpy(extracting_metrix).float()
@@ -118,9 +118,9 @@ def extracting_fingerprints(
     max_score = -100000
     max_idx = 0
     bit_length = local_fingerprints[0].shape[0]
-    weight = layers[0].weight.detach().numpy().flatten()
+    weight = layers[0].weight.detach().cpu().numpy().flatten()
     for i in range(1, len(layers)):
-        weight = np.append(weight, layers[i].weight.detach().numpy().flatten())
+        weight = np.append(weight, layers[i].weight.detach().cpu().numpy().flatten())
     for idx in range(len(local_fingerprints)):
         matrix = extracting_matrices[idx]
         result = np.dot(matrix, weight)
