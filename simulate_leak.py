@@ -77,6 +77,7 @@ def simulate_leak(
             embed_layers, client_fingerprint, extracting_matrices[client_idx], epsilon
         )
         grad_update = torch.mul(grad_update, -lambda_factor)
+        grad_update = grad_update.to(device)
 
         weight_count = 0
         for embed_layer in embed_layers:
