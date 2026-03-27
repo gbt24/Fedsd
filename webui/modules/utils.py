@@ -8,11 +8,41 @@ import os
 import sys
 from typing import Dict, List, Optional, Tuple
 
-sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
+sys.path.insert(0, PROJECT_ROOT)
 
-import torch
+
+def get_project_root() -> str:
+    """Get the project root directory."""
+    return PROJECT_ROOT
+
+
+def find_result_dir(result_dir: str = "result") -> str:
+    """
+    Find the result directory from multiple possible locations.
+
+    Args:
+        result_dir: Name of result directory
+
+    Returns:
+        Absolute path to result directory, or default path if not found
+    """
+    possible_paths = [
+        os.path.join(PROJECT_ROOT, result_dir),  # From project root
+        os.path.abspath(result_dir),  # Current working directory
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", result_dir
+        ),  # From this file
+    ]
+
+    for path in possible_paths:
+        abs_path = os.path.abspath(path)
+        if os.path.exists(abs_path):
+            return abs_path
+
+    return possible_paths[0]  # Return default path even if not found
 
 
 def scan_models(result_dir: str = "result") -> List[Dict]:
@@ -23,9 +53,10 @@ def scan_models(result_dir: str = "result") -> List[Dict]:
         List of dicts with model info: {path, name, type, has_trace_data}
     """
     models = []
-    result_path = os.path.abspath(result_dir)
+    result_path = find_result_dir(result_dir)
 
     if not os.path.exists(result_path):
+        print(f"Warning: Result directory not found: {result_path}")
         return models
 
     for model_dir in os.listdir(result_path):
@@ -39,11 +70,20 @@ def scan_models(result_dir: str = "result") -> List[Dict]:
         if not os.path.exists(args_file) or not os.path.exists(model_final):
             continue
 
-        with open(args_file, "r") as f:
-            args_dict = json.load(f)
+        try:
+            with open(args_file, "r") as f:
+                args_dict = json.load(f)
+        except Exception as e:
+            print(f"Warning: Failed to load {args_file}: {e}")
+            continue
 
         trace_dir = os.path.join(model_path, "trace_data")
-        has_trace_data = os.path.exists(trace_dir) and os.listdir(trace_dir)
+        has_trace_data = False
+        if os.path.exists(trace_dir) and os.path.isdir(trace_dir):
+            try:
+                has_trace_data = len(os.listdir(trace_dir)) > 0
+            except OSError:
+                has_trace_data = False
 
         models.append(
             {
@@ -70,8 +110,28 @@ def load_model_args(model_path: str) -> Dict:
         return json.load(f)
 
 
-def get_device(gpu_id: int = 0) -> torch.device:
+_torch = None
+
+
+def _get_torch():
+    """Lazy import torch."""
+    global _torch
+    if _torch is None:
+        try:
+            import torch
+
+            _torch = torch
+        except ImportError:
+            raise ImportError(
+                "PyTorch is required for this functionality. "
+                "Please install it with: pip install torch torchvision"
+            )
+    return _torch
+
+
+def get_device(gpu_id: int = 0):
     """Get PyTorch device based on GPU availability."""
+    torch = _get_torch()
     if torch.cuda.is_available() and gpu_id >= 0:
         return torch.device(f"cuda:{gpu_id}")
     return torch.device("cpu")

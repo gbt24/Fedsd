@@ -22,8 +22,20 @@ from modules.utils import (
     get_cifar100_labels,
     format_bytes,
 )
-from modules.generation import get_generator
-from modules.tracing import get_tracer
+
+
+def _get_generator():
+    """Lazy import of generator module."""
+    from modules.generation import get_generator
+
+    return get_generator()
+
+
+def _get_tracer():
+    """Lazy import of tracer module."""
+    from modules.tracing import get_tracer
+
+    return get_tracer()
 
 
 def get_model_choices():
@@ -62,7 +74,7 @@ def create_generation_tab():
         if model_path is None:
             return f"Model not found: {selected_model}", ""
 
-        generator = get_generator()
+        generator = _get_generator()
         status, info = generator.load_model(model_path, int(gpu_id_val))
 
         labels_display = ""
@@ -87,7 +99,7 @@ def create_generation_tab():
         if not selected_model:
             return "Please load a model first", None
 
-        generator = get_generator()
+        generator = _get_generator()
 
         if generator.model is None:
             models = scan_models("result")
@@ -115,7 +127,7 @@ def create_generation_tab():
         if image is None:
             return "No image to save"
 
-        generator = get_generator()
+        generator = _get_generator()
         filepath = generator.save_images(image, save_path)
         return f"Saved to: {filepath}"
 
@@ -248,7 +260,7 @@ def create_tracing_tabs():
         if not os.path.exists(trace_path):
             return "", "Trace data not found. Train with --fingerprint flag."
 
-        tracer = get_tracer()
+        tracer = _get_tracer()
         success, msg, info = tracer.load_trace_data(trace_path)
 
         if success:
@@ -274,7 +286,7 @@ def create_tracing_tabs():
         if model_path is None:
             return f"Model not found: {source_model}", {}
 
-        tracer = get_tracer()
+        tracer = _get_tracer()
         if tracer.local_fingerprints is None:
             return "Please load trace data first", {}
 
@@ -293,7 +305,7 @@ def create_tracing_tabs():
         if not leaked_path or not trace_path:
             return "Please provide both leaked model path and trace data directory", {}
 
-        tracer = get_tracer()
+        tracer = _get_tracer()
 
         success1, msg1, _ = tracer.load_trace_data(trace_path)
         if not success1:
