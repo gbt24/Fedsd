@@ -261,7 +261,7 @@ class ImageGenerator:
     def _make_grid(self, images: torch.Tensor, num_classes: int) -> np.ndarray:
         """Create a grid image from generated images."""
         nrow = min(8, images.shape[0])
-        grid = make_grid(images, nrow=nrow, normalize=True, value_range=(-1, 1))
+        grid = make_grid(images, nrow=nrow, normalize=True)
         grid = grid.permute(1, 2, 0).numpy()
         grid = (grid * 255).astype(np.uint8)
         return grid
