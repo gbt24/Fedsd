@@ -56,10 +56,10 @@ def identify_owner(
 
     all_scores = []
     for idx in range(len(local_fingerprints)):
-        weight = embed_layers[0].weight.detach().numpy().flatten()
+        weight = embed_layers[0].weight.detach().cpu().numpy().flatten()
         for i in range(1, len(embed_layers)):
             weight = np.append(
-                weight, embed_layers[i].weight.detach().numpy().flatten()
+                weight, embed_layers[i].weight.detach().cpu().numpy().flatten()
             )
 
         matrix = extracting_matrices[idx]
