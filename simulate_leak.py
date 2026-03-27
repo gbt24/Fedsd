@@ -17,6 +17,7 @@ import argparse
 import copy
 import json
 import os
+import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -223,6 +224,15 @@ def main():
 
     print(f"\nSaving leaked model to {args.output}...")
     torch.save(leaked_model.state_dict(), args.output)
+
+    # Copy args file to leak model directory for identify_owner.py
+    output_dir = os.path.dirname(args.output)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    args_output_path = os.path.join(output_dir if output_dir else ".", "args.txt")
+    if os.path.exists(args_file):
+        shutil.copy(args_file, args_output_path)
+        print(f"Copied args file to {args_output_path}")
 
     print("\n" + "=" * 60)
     print("Leak Simulation Complete")
