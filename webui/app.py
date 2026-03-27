@@ -349,9 +349,10 @@ def create_tracing_tabs():
     def on_select_trace_model(selected_model):
         if not selected_model:
             return ""
-        for name, trace_path in get_trace_dirs():
-            if name == selected_model:
-                return trace_path
+        models = scan_models("result")
+        for m in models:
+            if m["name"] == selected_model and m["has_trace_data"]:
+                return os.path.join(m["path"], "trace_data")
         return ""
 
     def on_refresh_leaked():
