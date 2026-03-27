@@ -53,6 +53,17 @@ def get_trace_model_choices():
     return [f"{m['name']} ({m['type']})" for m in models]
 
 
+def get_trace_dirs():
+    """Get list of models with trace data and their paths."""
+    models = scan_models("result")
+    has_trace = [m for m in models if m["has_trace_data"]]
+    result = []
+    for m in has_trace:
+        trace_path = os.path.join(m["path"], "trace_data")
+        result.append((m["name"], trace_path))
+    return result
+
+
 def create_generation_tab():
     """Create the image generation tab."""
 
@@ -318,6 +329,18 @@ def create_tracing_tabs():
 
         return msg2, result
 
+    def on_refresh_identify():
+        choices = [m[0] for m in get_trace_dirs()]
+        return gr.Dropdown(choices=choices)
+
+    def on_select_trace_model(selected_model):
+        if not selected_model:
+            return ""
+        for name, trace_path in get_trace_dirs():
+            if name == selected_model:
+                return trace_path
+        return ""
+
     # Leak Simulation Tab
     with gr.Tab("Leak Simulation"):
         gr.Markdown("### Simulate a client model leak")
@@ -360,7 +383,7 @@ def create_tracing_tabs():
                         label="Lambda Factor", value=0.01, info="Learning rate"
                     )
                     output_dir_simulation = gr.Textbox(
-                        label="Output Directory", value=""
+                        label="Output Directory", value="/home/ubuntu/Fedsd/leak_test/"
                     )
 
                 simulate_btn = gr.Button("🔍 Simulate Leak", variant="primary")
@@ -379,12 +402,20 @@ def create_tracing_tabs():
                     label="Leaked Model Path",
                     info="Path to the leaked model checkpoint (.pth)",
                 )
+                with gr.Row():
+                    identify_trace_model = gr.Dropdown(
+                        label="Source Model (Trace Data)",
+                        choices=[m[0] for m in get_trace_dirs()],
+                        info="Select model with trace data",
+                        scale=4,
+                    )
+                    refresh_identify_btn = gr.Button("🔄", size="sm", scale=1)
                 identify_trace_dir = gr.Textbox(
                     label="Trace Data Directory",
                     value="",
-                    info="Must match the source model",
+                    interactive=False,
+                    info="Auto-filled from selection",
                 )
-                load_identify_trace_btn = gr.Button("📂 Load Trace Data")
                 identify_trace_info = gr.Textbox(
                     label="Trace Data Info", lines=2, interactive=False
                 )
@@ -420,15 +451,17 @@ def create_tracing_tabs():
         outputs=[simulation_progress, simulation_result],
     )
 
-    load_identify_trace_btn.click(
-        fn=on_load_trace,
-        inputs=leaked_model_path,
-        outputs=[identify_trace_dir, identify_trace_info],
-    )
     identify_btn.click(
         fn=on_identify,
         inputs=[leaked_model_path, identify_trace_dir, identify_gpu],
         outputs=[identify_progress, identification_result],
+    )
+
+    refresh_identify_btn.click(fn=on_refresh_identify, outputs=identify_trace_model)
+    identify_trace_model.change(
+        fn=on_select_trace_model,
+        inputs=identify_trace_model,
+        outputs=identify_trace_dir,
     )
 
     return source_model
