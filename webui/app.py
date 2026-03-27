@@ -64,6 +64,19 @@ def get_trace_dirs():
     return result
 
 
+LEAK_TEST_DIR = "/home/ubuntu/Fedsd/leak_test/"
+
+
+def get_leaked_models():
+    """Get list of leaked models from leak_test directory."""
+    models = []
+    if os.path.exists(LEAK_TEST_DIR):
+        for f in os.listdir(LEAK_TEST_DIR):
+            if f.endswith(".pth"):
+                models.append((f, os.path.join(LEAK_TEST_DIR, f)))
+    return sorted(models, key=lambda x: x[0])
+
+
 def create_generation_tab():
     """Create the image generation tab."""
 
@@ -341,6 +354,18 @@ def create_tracing_tabs():
                 return trace_path
         return ""
 
+    def on_refresh_leaked():
+        choices = [m[0] for m in get_leaked_models()]
+        return gr.Dropdown(choices=choices)
+
+    def on_select_leaked_model(selected_model):
+        if not selected_model:
+            return ""
+        for name, path in get_leaked_models():
+            if name == selected_model:
+                return path
+        return ""
+
     # Leak Simulation Tab
     with gr.Tab("Leak Simulation"):
         gr.Markdown("### Simulate a client model leak")
@@ -398,9 +423,19 @@ def create_tracing_tabs():
 
         with gr.Row():
             with gr.Column(scale=1):
+                with gr.Row():
+                    leaked_model_dropdown = gr.Dropdown(
+                        label="Leaked Model",
+                        choices=[m[0] for m in get_leaked_models()],
+                        info="Select leaked model from leak_test directory",
+                        scale=4,
+                    )
+                    refresh_leaked_btn = gr.Button("🔄", size="sm", scale=1)
                 leaked_model_path = gr.Textbox(
                     label="Leaked Model Path",
-                    info="Path to the leaked model checkpoint (.pth)",
+                    value="",
+                    interactive=False,
+                    info="Auto-filled from selection",
                 )
                 with gr.Row():
                     identify_trace_model = gr.Dropdown(
@@ -462,6 +497,13 @@ def create_tracing_tabs():
         fn=on_select_trace_model,
         inputs=identify_trace_model,
         outputs=identify_trace_dir,
+    )
+
+    refresh_leaked_btn.click(fn=on_refresh_leaked, outputs=leaked_model_dropdown)
+    leaked_model_dropdown.change(
+        fn=on_select_leaked_model,
+        inputs=leaked_model_dropdown,
+        outputs=leaked_model_path,
     )
 
     return source_model
