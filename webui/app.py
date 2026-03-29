@@ -94,7 +94,11 @@ def create_ui():
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 模型设置</h3>')
                 model_dropdown = gr.Dropdown(
-                    choices=model_dirs, value=default_model, label="选择模型"
+                    choices=model_dirs if model_dirs else ["暂无可用模型"],
+                    value=default_model,
+                    label="选择模型",
+                    interactive=True,
+                    allow_custom_value=False,
                 )
 
                 with gr.Accordion("高级设置", open=False):
@@ -126,8 +130,19 @@ def create_ui():
         with gr.Row(visible=False) as leak_row:
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 模拟配置</h3>')
-                leak_model = gr.Dropdown(choices=models_with_trace, label="源模型")
-                client_idx = gr.Dropdown(label="客户端索引")
+                leak_model = gr.Dropdown(
+                    choices=models_with_trace
+                    if models_with_trace
+                    else ["暂无可用模型"],
+                    label="源模型",
+                    interactive=True,
+                    allow_custom_value=False,
+                )
+                client_idx = gr.Dropdown(
+                    choices=[],
+                    label="客户端索引",
+                    interactive=True,
+                )
                 leak_output = gr.Textbox(value="leaked_model.pth", label="输出文件名")
 
                 simulate_btn = gr.Button("🎭 开始模拟", size="lg", variant="primary")
@@ -142,10 +157,20 @@ def create_ui():
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 识别配置</h3>')
                 leaked_model = gr.Dropdown(
-                    choices=find_leaked_models(LEAK_TEST_DIR), label="泄漏模型"
+                    choices=find_leaked_models(LEAK_TEST_DIR),
+                    label="泄漏模型",
+                    interactive=True,
+                    allow_custom_value=False,
                 )
                 refresh_btn = gr.Button("🔄 刷新列表", size="sm")
-                source_model = gr.Dropdown(choices=models_with_trace, label="源模型")
+                source_model = gr.Dropdown(
+                    choices=models_with_trace
+                    if models_with_trace
+                    else ["暂无可用模型"],
+                    label="源模型",
+                    interactive=True,
+                    allow_custom_value=False,
+                )
 
                 identify2_btn = gr.Button("🎯 开始识别", size="lg", variant="primary")
                 back3_btn = gr.Button("← 返回首页", size="lg")
@@ -157,36 +182,36 @@ def create_ui():
 
         # 页面切换
         def show_generation():
-            return (
-                gr.Row(visible=False),
-                gr.Row(visible=True),
-                gr.Row(visible=False),
-                gr.Row(visible=False),
-            )
+            return [
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            ]
 
         def show_leak():
-            return (
-                gr.Row(visible=False),
-                gr.Row(visible=False),
-                gr.Row(visible=True),
-                gr.Row(visible=False),
-            )
+            return [
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=False),
+            ]
 
         def show_identify():
-            return (
-                gr.Row(visible=False),
-                gr.Row(visible=False),
-                gr.Row(visible=False),
-                gr.Row(visible=True),
-            )
+            return [
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+            ]
 
         def show_home():
-            return (
-                gr.Row(visible=True),
-                gr.Row(visible=False),
-                gr.Row(visible=False),
-                gr.Row(visible=False),
-            )
+            return [
+                gr.update(visible=True),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            ]
 
         gen_btn.click(
             show_generation,
