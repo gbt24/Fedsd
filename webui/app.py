@@ -534,10 +534,10 @@ def create_app():
         # 页面切换函数
         def show_page(page_name):
             return {
-                home_page: gr.Column.update(visible=(page_name == "home")),
-                generate_page: gr.Column.update(visible=(page_name == "generate")),
-                leak_page: gr.Column.update(visible=(page_name == "leak")),
-                identify_page: gr.Column.update(visible=(page_name == "identify")),
+                home_page: gr.update(visible=(page_name == "home")),
+                generate_page: gr.update(visible=(page_name == "generate")),
+                leak_page: gr.update(visible=(page_name == "leak")),
+                identify_page: gr.update(visible=(page_name == "identify")),
             }
 
         # 首页按钮事件
@@ -571,10 +571,10 @@ def create_app():
         # 刷新模型列表
         def refresh_models():
             return {
-                gen_model: gr.Dropdown.update(choices=get_model_choices()),
-                leak_model: gr.Dropdown.update(choices=get_model_choices()),
-                id_source: gr.Dropdown.update(choices=get_model_choices()),
-                id_leaked: gr.Dropdown.update(choices=get_leaked_model_choices()),
+                gen_model: gr.update(choices=get_model_choices()),
+                leak_model: gr.update(choices=get_model_choices()),
+                id_source: gr.update(choices=get_model_choices()),
+                id_leaked: gr.update(choices=get_leaked_model_choices()),
             }
 
         gen_refresh.click(
