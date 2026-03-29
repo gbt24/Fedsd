@@ -12,17 +12,18 @@ from datetime import datetime
 
 import gradio as gr
 
-sys.path.insert(0, osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__)))))
+sys.path.insert(0, osp.dirname(osp.dirname(osp.abspath(__file__))))
+sys.path.insert(0, osp.dirname(osp.abspath(__file__)))
 
-from webui.modules.utils import (
+from modules.utils import (
     find_model_dirs,
     find_leaked_models,
     read_args,
     has_trace_data,
     get_default_output_dir,
 )
-from webui.modules.generation import generate_images, save_images
-from webui.modules.tracing import simulate_client_leak, identify_owner, get_client_list
+from modules.generation import generate_images, save_images
+from modules.tracing import simulate_client_leak, identify_owner, get_client_list
 
 LEAK_TEST_DIR = "/home/ubuntu/Fedsd/leak_test/"
 
