@@ -1,4 +1,9 @@
 # -*- coding: UTF-8 -*-
+"""
+Image generation module for FedTracker WebUI.
+Supports SimpleUNet diffusion models for CIFAR-10/100.
+"""
+
 import os
 import os.path as osp
 import sys
@@ -8,34 +13,40 @@ from PIL import Image
 
 sys.path.insert(0, osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__)))))
 
-from utils.utils import parse_args
+from utils.utils import load_args
 from utils.simple_unet import ClassConditionalUNet
-from utils.simple_diffusion import DDPMScheduler
+from utils.simple_diffusion import SimpleDiffusion
 
 
 def load_model(checkpoint_path, device="cuda"):
+    """Load model checkpoint."""
     checkpoint = torch.load(checkpoint_path, map_location=device)
     return checkpoint
 
 
 def get_diffusion_args(model_dir):
+    """Parse model arguments from args.txt file."""
     args_path = osp.join(model_dir, "args.txt")
-    if osp.exists(args_path):
-        args = parse_args()
-        with open(args_path, "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                if "=" in line:
-                    key, value = line.strip().split("=", 1)
-                    key = key.strip()
-                    value = value.strip()
+    if not osp.exists(args_path):
+        return None
+
+    args = load_args()
+    with open(args_path, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip()
+            if "=" in line and not line.startswith("#"):
+                parts = line.split("=", 1)
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value_str = parts[1].strip()
                     if hasattr(args, key):
                         try:
-                            setattr(args, key, eval(value))
+                            value = eval(value_str)
                         except:
-                            setattr(args, key, value)
-        return args
-    return None
+                            value = value_str
+                        setattr(args, key, value)
+    return args
 
 
 def generate_images(
@@ -47,31 +58,54 @@ def generate_images(
     trigger_class=None,
     device="cuda",
 ):
-    args_path = osp.join(model_dir, "args.txt")
+    """
+    Generate images from a trained diffusion model.
+
+    Args:
+        model_dir: Path to model directory containing model_final.pth and args.txt
+        class_label: Target class for generation (0-9 for CIFAR-10)
+        num_images: Number of images to generate
+        num_inference_steps: Number of denoising steps
+        seed: Random seed for reproducibility
+        trigger_class: Optional trigger class for watermark generation
+        device: Device to run on ('cuda' or 'cpu')
+
+    Returns:
+        tuple: (list of PIL Images, error message or None)
+    """
     model_path = osp.join(model_dir, "model_final.pth")
 
     if not osp.exists(model_path):
-        return None, "Model file not found"
+        return None, f"Model file not found: {model_path}"
 
     try:
         args = get_diffusion_args(model_dir)
         if args is None:
-            return None, "Cannot read model arguments"
+            return None, "Cannot read model arguments from args.txt"
 
         if device == "cuda" and not torch.cuda.is_available():
             device = "cpu"
 
         model = ClassConditionalUNet(args)
         checkpoint = torch.load(model_path, map_location=device)
+
         if "model" in checkpoint:
             model.load_state_dict(checkpoint["model"])
         else:
             model.load_state_dict(checkpoint)
+
         model.to(device)
         model.eval()
 
-        scheduler = DDPMScheduler(num_train_timesteps=1000)
-        scheduler.set_timesteps(num_inference_steps)
+        diffusion = SimpleDiffusion(
+            num_timesteps=args.timesteps if hasattr(args, "timesteps") else 1000,
+            beta_start=0.0001,
+            beta_end=0.02,
+            beta_schedule=args.beta_schedule
+            if hasattr(args, "beta_schedule")
+            else "linear",
+            device=device,
+        )
 
         torch.manual_seed(seed)
 
@@ -81,10 +115,6 @@ def generate_images(
 
             for i in range(0, num_images, batch_size):
                 current_batch = min(batch_size, num_images - i)
-
-                noise = torch.randn(
-                    current_batch, args.num_channels, args.image_size, args.image_size
-                ).to(device)
 
                 if trigger_class is not None and class_label == trigger_class:
                     class_labels = torch.full(
@@ -96,7 +126,14 @@ def generate_images(
                     )
 
                 with torch.no_grad():
-                    images = scheduler.sample(model, noise, class_labels)
+                    images = diffusion.sample(
+                        model,
+                        batch_size=current_batch,
+                        class_labels=class_labels,
+                        num_inference_steps=num_inference_steps,
+                        device=device,
+                        return_all_timesteps=False,
+                    )
 
                 images = images.cpu()
                 for img in images:
@@ -105,24 +142,42 @@ def generate_images(
                             img_np = img.permute(1, 2, 0).numpy()
                         else:
                             img_np = img.squeeze().numpy()
-                        if img_np.max() <= 1.0:
+
+                        if img_np.max() <= 1.0 and img_np.min() >= -1.0:
+                            img_np = ((img_np + 1.0) / 2.0 * 255).astype("uint8")
+                        elif img_np.max() <= 1.0:
                             img_np = (img_np * 255).astype("uint8")
                         else:
                             img_np = img_np.astype("uint8")
+
                         pil_img = Image.fromarray(img_np)
                         generated_images.append(pil_img)
 
             return generated_images, None
         else:
-            return None, f"Unsupported model type: {args.model}"
+            return (
+                None,
+                f"Unsupported model type: {args.model}. Only SimpleUNet is supported.",
+            )
 
     except Exception as e:
         import traceback
 
-        return None, f"Error: {str(e)}\n{traceback.format_exc()}"
+        error_msg = f"Error generating images: {str(e)}\n{traceback.format_exc()}"
+        return None, error_msg
 
 
 def save_images(images, output_dir):
+    """
+    Save generated images to output directory.
+
+    Args:
+        images: List of PIL Images
+        output_dir: Directory to save images
+
+    Returns:
+        list: Paths to saved images
+    """
     os.makedirs(output_dir, exist_ok=True)
     paths = []
     for i, img in enumerate(images):
