@@ -93,6 +93,53 @@ python identify_owner.py \
     --trace_dir ./result/simpleunet_cifar10_stage2/trace_data
 ```
 
+## WebUI 界面
+
+提供 Web 界面进行模型演示和泄漏追踪：
+
+### 启动 WebUI
+
+```bash
+# 从项目根目录运行
+cd webui
+pip install gradio matplotlib
+python app.py --port 7860
+
+# 或使用启动脚本
+./webui/run.sh
+```
+
+访问 `http://localhost:7860`
+
+### WebUI 功能
+
+| 功能 | 说明 |
+|------|------|
+| **图像生成** | 从已训练模型生成图像，支持类别选择和触发类（水印）|
+| **泄漏模拟** | 选择源模型和客户端索引，模拟模型泄漏 |
+| **所有者识别** | 从泄漏模型识别所有者，显示置信度和候选列表 |
+
+### WebUI 目录结构
+
+```
+webui/
+├── app.py                    # Gradio 主应用
+├── run.sh                    # 启动脚本
+├── requirements.txt          # WebUI 依赖
+├── modules/
+│   ├── utils.py             # 工具函数
+│   ├── generation.py        # 图像生成模块
+│   └── tracing.py           # 溯源模块
+└── static/
+    └── outputs/             # 生成图像输出目录
+```
+
+### WebUI 配置
+
+- 泄漏模型默认保存目录：`/home/ubuntu/Fedsd/leak_test/`
+- 模型扫描目录：`result/`
+- 端口配置：`--port` 参数（默认 7860）
+
 ## 项目结构
 
 ```
