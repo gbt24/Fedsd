@@ -198,37 +198,38 @@ def create_ui():
                     confidence = gr.Number(label="置信度", interactive=False)
 
         # ========== 页面切换函数 ==========
+        # 不要返回新的 gr.Column 对象，而是使用 gr.update()
         def to_generation():
-            return (
-                gr.Column(visible=False),
-                gr.Column(visible=True),
-                gr.Column(visible=False),
-                gr.Column(visible=False),
-            )
+            return [
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            ]
 
         def to_leak():
-            return (
-                gr.Column(visible=False),
-                gr.Column(visible=False),
-                gr.Column(visible=True),
-                gr.Column(visible=False),
-            )
+            return [
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+                gr.update(visible=False),
+            ]
 
         def to_identify():
-            return (
-                gr.Column(visible=False),
-                gr.Column(visible=False),
-                gr.Column(visible=False),
-                gr.Column(visible=True),
-            )
+            return [
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=True),
+            ]
 
         def to_home():
-            return (
-                gr.Column(visible=True),
-                gr.Column(visible=False),
-                gr.Column(visible=False),
-                gr.Column(visible=False),
-            )
+            return [
+                gr.update(visible=True),
+                gr.update(visible=False),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            ]
 
         def update_client_list(model_name):
             if model_name:
