@@ -487,6 +487,25 @@ body {
         margin-left: 0;
     }
 }
+
+/* Home Page Buttons */
+.home-page-btn {
+    width: 100%;
+    margin-top: -20px;
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 16px 24px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: white !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.home-page-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4) !important;
+}
 """
 
 CSS = DARK_THEME_CSS
@@ -507,55 +526,69 @@ def create_ui():
 
             with gr.Column(visible=True) as home_page:
                 gr.HTML("""
-                    <div id="hero">
-                        <h2>Welcome to FedTracker</h2>
-                        <p>A professional federated learning watermark tracking system for diffusion models. 
-                        Verify ownership and trace model leaks with cutting-edge fingerprint technology.</p>
+                    <div id="hero" style="text-align: center; padding: 60px 20px;">
+                        <h2 style="font-size: 48px; font-weight: 800; color: #ffffff; margin-bottom: 16px;">Welcome to FedTracker</h2>
+                        <p style="font-size: 18px; color: #a0a0a0; max-width: 600px; margin: 0 auto 48px;">
+                            A professional federated learning watermark tracking system for diffusion models.
+                            Verify ownership and trace model leaks with cutting-edge fingerprint technology.
+                        </p>
                     </div>
                 """)
 
                 with gr.Row():
                     with gr.Column():
-                        with gr.Column(elem_classes=["feature-card"]) as gen_card:
-                            gr.HTML("""
-                                <div class="card-icon">🎨</div>
-                                <div class="card-title">Image Generation</div>
-                                <div class="card-description">
-                                    Generate high-quality images from trained diffusion models. 
+                        gr.HTML("""
+                            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 24px; padding: 40px 32px; text-align: center; height: 320px;">
+                                <div style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(168,85,247,0.1) 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px;">🎨</div>
+                                <div style="font-size: 24px; font-weight: 700; color: #ffffff; margin-bottom: 12px;">Image Generation</div>
+                                <div style="font-size: 15px; line-height: 1.6; color: #a0a0a0;">
+                                    Generate high-quality images from trained diffusion models.
                                     Support for custom prompts, class labels, and watermark triggers.
                                 </div>
-                                <div class="card-action">
-                                    Start Generating →
-                                </div>
-                            """)
+                            </div>
+                        """)
+                        gen_btn = gr.Button(
+                            "Start Generating →",
+                            size="lg",
+                            variant="primary",
+                            elem_classes=["home-page-btn"],
+                        )
 
                     with gr.Column():
-                        with gr.Column(elem_classes=["feature-card"]) as leak_card:
-                            gr.HTML("""
-                                <div class="card-icon">🔍</div>
-                                <div class="card-title">Leak Simulation</div>
-                                <div class="card-description">
-                                    Simulate client model leaks in federated learning scenarios. 
+                        gr.HTML("""
+                            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 24px; padding: 40px 32px; text-align: center; height: 320px;">
+                                <div style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(168,85,247,0.1) 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px;">🔍</div>
+                                <div style="font-size: 24px; font-weight: 700; color: #ffffff; margin-bottom: 12px;">Leak Simulation</div>
+                                <div style="font-size: 15px; line-height: 1.6; color: #a0a0a0;">
+                                    Simulate client model leaks in federated learning scenarios.
                                     Test your tracking system's robustness.
                                 </div>
-                                <div class="card-action">
-                                    Simulate Leak →
-                                </div>
-                            """)
+                            </div>
+                        """)
+                        leak_btn = gr.Button(
+                            "Simulate Leak →",
+                            size="lg",
+                            variant="primary",
+                            elem_classes=["home-page-btn"],
+                        )
 
                     with gr.Column():
-                        with gr.Column(elem_classes=["feature-card"]) as identify_card:
-                            gr.HTML("""
-                                <div class="card-icon">🎯</div>
-                                <div class="card-title">Owner Identification</div>
-                                <div class="card-description">
-                                    Identify the owner of leaked models using fingerprint matching. 
+                        gr.HTML("""
+                            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 24px; padding: 40px 32px; text-align: center; height: 320px;">
+                                <div style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(168,85,247,0.1) 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px;">🎯</div>
+                                <div style="font-size: 24px; font-weight: 700; color: #ffffff; margin-bottom: 12px;">Owner Identification</div>
+                                <div style="font-size: 15px; line-height: 1.6; color: #a0a0a0;">
+                                    Identify the owner of leaked models using fingerprint matching.
                                     Precise attribution with confidence scores.
                                 </div>
-                                <div class="card-action">
-                                    Identify Owner →
-                                </div>
-                            """)
+                            </div>
+                        """)
+                        identify_btn_home = gr.Button(
+                            "Identify Owner →",
+                            size="lg",
+                            variant="primary",
+                            elem_classes=["home-page-btn"],
+                        )
 
             with gr.Column(visible=False) as generation_page:
                 with gr.Row():
@@ -759,15 +792,15 @@ def create_ui():
                 identify_page: gr.Column(visible=True),
             }
 
-        gen_card.click(
+        gen_btn.click(
             show_generation_page,
             outputs=[home_page, generation_page, leak_page, identify_page],
         )
-        leak_card.click(
+        leak_btn.click(
             show_leak_page,
             outputs=[home_page, generation_page, leak_page, identify_page],
         )
-        identify_card.click(
+        identify_btn_home.click(
             show_identify_page,
             outputs=[home_page, generation_page, leak_page, identify_page],
         )
