@@ -632,5 +632,31 @@ def create_app():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="FedTracker WebUI")
+    parser.add_argument("--port", type=int, default=7860, help="本地服务端口")
+    parser.add_argument("--share", action="store_true", help="启用Gradio公网分享")
+    parser.add_argument("--auth", type=str, help="设置用户名:密码 (如 admin:123456)")
+    args = parser.parse_args()
+
     app = create_app()
-    app.launch(server_name="0.0.0.0", server_port=7860, share=False)
+
+    launch_kwargs = {
+        "server_name": "0.0.0.0",
+        "server_port": args.port,
+        "share": args.share,
+    }
+
+    if args.auth:
+        username, password = args.auth.split(":")
+        launch_kwargs["auth"] = (username, password)
+        print(f"已启用身份验证 - 用户名: {username}")
+
+    print(f"启动 WebUI...")
+    print(f"本地访问: http://localhost:{args.port}")
+    if args.share:
+        print("正在生成公网链接...")
+    print("")
+
+    app.launch(**launch_kwargs)
