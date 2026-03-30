@@ -134,12 +134,14 @@ def create_ui():
                     choices=models_with_trace
                     if models_with_trace
                     else ["暂无可用模型"],
+                    value=models_with_trace[0] if models_with_trace else "暂无可用模型",
                     label="源模型",
                     interactive=True,
                     allow_custom_value=False,
                 )
                 client_idx = gr.Dropdown(
                     choices=[],
+                    value=None,
                     label="客户端索引",
                     interactive=True,
                 )
@@ -158,6 +160,7 @@ def create_ui():
                 gr.HTML('<h3 style="color: #fff;">⚙️ 识别配置</h3>')
                 leaked_model = gr.Dropdown(
                     choices=find_leaked_models(LEAK_TEST_DIR),
+                    value=None,
                     label="泄漏模型",
                     interactive=True,
                     allow_custom_value=False,
@@ -167,6 +170,7 @@ def create_ui():
                     choices=models_with_trace
                     if models_with_trace
                     else ["暂无可用模型"],
+                    value=models_with_trace[0] if models_with_trace else "暂无可用模型",
                     label="源模型",
                     interactive=True,
                     allow_custom_value=False,
