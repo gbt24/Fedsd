@@ -19,18 +19,22 @@ sys.path.insert(0, osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__)))))
 def load_trace_data(trace_dir):
     """Load trace data from .npy and .json files."""
     fingerprints_path = osp.join(trace_dir, "fingerprints.npy")
+    extract_matrices_path = osp.join(trace_dir, "extract_matrices.npy")
     metadata_path = osp.join(trace_dir, "metadata.json")
 
     if not osp.exists(fingerprints_path):
-        return None, None, f"fingerprints.npy not found in {trace_dir}"
+        return None, None, None, f"fingerprints.npy not found in {trace_dir}"
+    if not osp.exists(extract_matrices_path):
+        return None, None, None, f"extract_matrices.npy not found in {trace_dir}"
     if not osp.exists(metadata_path):
-        return None, None, f"metadata.json not found in {trace_dir}"
+        return None, None, None, f"metadata.json not found in {trace_dir}"
 
     fingerprints = np.load(fingerprints_path)
+    extract_matrices = np.load(extract_matrices_path)
     with open(metadata_path, "r") as f:
         metadata = json.load(f)
 
-    return fingerprints, metadata, None
+    return fingerprints, extract_matrices, metadata, None
 
 
 def simulate_client_leak(checkpoint_path, trace_dir, client_idx, output_path):
@@ -45,7 +49,7 @@ def simulate_client_leak(checkpoint_path, trace_dir, client_idx, output_path):
         return None, f"Trace directory not found: {trace_dir}"
 
     try:
-        fingerprints, metadata, error = load_trace_data(trace_dir)
+        _, _, metadata, error = load_trace_data(trace_dir)
         if error:
             return None, error
 
@@ -78,58 +82,96 @@ def identify_owner(leaked_model_path, trace_dir):
         return None, None, f"Trace directory not found: {trace_dir}"
 
     try:
-        fingerprints, metadata, error = load_trace_data(trace_dir)
+        fingerprints, extract_matrices, metadata, error = load_trace_data(trace_dir)
         if error:
             return None, None, error
 
         num_clients = metadata.get("num_clients", 0)
+        embed_layer_names = metadata.get(
+            "embed_layer_names", "mid_block.attention.proj"
+        )
+        lfp_length = metadata.get("lfp_length", 128)
+
         if num_clients == 0:
             return None, None, "No client information in metadata"
 
-        leaked_model = torch.load(leaked_model_path, map_location="cpu")
+        from watermark.fingerprint_diffusion import get_diffusion_embed_layers
+        from utils.simple_unet import ClassConditionalUNet
 
-        if "model" in leaked_model:
-            leaked_state = leaked_model["model"]
+        checkpoint = torch.load(leaked_model_path, map_location="cpu")
+
+        if "model" in checkpoint:
+            model_state = checkpoint["model"]
         else:
-            leaked_state = leaked_model
+            model_state = checkpoint
+
+        model_args_path = osp.join(osp.dirname(leaked_model_path), "args.txt")
+        if osp.exists(model_args_path):
+            with open(model_args_path, "r") as f:
+                args_dict = json.load(f)
+        else:
+            args_dict = {
+                "model": "SimpleUNet",
+                "num_classes": 10,
+                "num_channels": 3,
+                "image_size": 32,
+                "timesteps": 1000,
+                "beta_schedule": "linear",
+                "time_embed_dim": 512,
+                "class_embed_dim": 512,
+                "block_out_channels": (128, 256, 256, 256),
+                "layers_per_block": 2,
+                "dropout": 0.1,
+            }
+
+        class SimpleArgs:
+            pass
+
+        args = SimpleArgs()
+        for k, v in args_dict.items():
+            setattr(args, k, v)
+
+        model = ClassConditionalUNet(
+            num_classes=getattr(args, "num_classes", 10),
+            in_channels=getattr(args, "num_channels", 3),
+            out_channels=getattr(args, "num_channels", 3),
+            sample_size=getattr(args, "image_size", 32),
+            time_embed_dim=getattr(args, "time_embed_dim", 512),
+            class_embed_dim=getattr(args, "class_embed_dim", 512),
+            block_out_channels=getattr(
+                args, "block_out_channels", (128, 256, 256, 256)
+            ),
+            layers_per_block=getattr(args, "layers_per_block", 2),
+            dropout=getattr(args, "dropout", 0.1),
+        )
+
+        model.load_state_dict(model_state)
+        model.eval()
+
+        embed_layers = get_diffusion_embed_layers(model, embed_layer_names)
 
         weight_list = []
-        if isinstance(leaked_state, dict):
-            for key in sorted(leaked_state.keys()):
-                if "weight" in key:
-                    w = leaked_state[key]
-                    if isinstance(w, torch.Tensor):
-                        weight_list.append(w.detach().cpu().numpy().flatten())
+        for layer in embed_layers:
+            w = layer.weight.detach().cpu().numpy().flatten()
+            weight_list.append(w)
+        weight = np.concatenate(weight_list)
 
-        if weight_list:
-            leaked_fp = np.concatenate(weight_list)
-        else:
-            return None, None, "No weights found in leaked model"
-
-        similarity_scores = []
+        all_scores = []
+        epsilon = 0.5
 
         for client_idx in range(num_clients):
-            client_fp = fingerprints[client_idx].flatten()
+            matrix = extract_matrices[client_idx]
+            result = np.dot(matrix, weight)
 
-            min_len = min(len(leaked_fp), len(client_fp))
-            if min_len > 0:
-                score = np.abs(leaked_fp[:min_len] - client_fp[:min_len]).mean()
-                similarity_scores.append((client_idx, score))
+            result = np.multiply(result, fingerprints[client_idx])
+            result[result > epsilon] = epsilon
+            score = np.sum(result) / lfp_length / epsilon
+            all_scores.append(score)
 
-        if similarity_scores:
-            similarity_scores.sort(key=lambda x: x[1])
-            best_client = similarity_scores[0][0]
-            best_score = similarity_scores[0][1]
+        best_match_idx = np.argmax(all_scores)
+        confidence = all_scores[best_match_idx]
 
-            total_score = sum(s[1] for s in similarity_scores)
-            if total_score > 0:
-                confidence = 1.0 - (best_score / total_score)
-            else:
-                confidence = 1.0
-
-            return best_client, confidence, None
-        else:
-            return None, None, "No fingerprints found in trace directory"
+        return int(best_match_idx), float(confidence), None
 
     except Exception as e:
         import traceback
