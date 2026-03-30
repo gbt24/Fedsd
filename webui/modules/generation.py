@@ -101,7 +101,21 @@ def generate_images(
         if device == "cuda" and not torch.cuda.is_available():
             device = "cpu"
 
-        model = ClassConditionalUNet(args)
+        model = ClassConditionalUNet(
+            num_classes=args.num_classes,
+            in_channels=args.num_channels,
+            out_channels=args.num_channels,
+            sample_size=args.image_size,
+            time_embed_dim=args.time_embed_dim,
+            class_embed_dim=args.class_embed_dim,
+            block_out_channels=args.block_out_channels
+            if hasattr(args, "block_out_channels")
+            else (128, 256, 256, 512),
+            layers_per_block=args.layers_per_block
+            if hasattr(args, "layers_per_block")
+            else 2,
+            dropout=args.dropout if hasattr(args, "dropout") else 0.1,
+        )
         checkpoint = torch.load(model_path, map_location=device)
 
         if "model" in checkpoint:
