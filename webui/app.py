@@ -54,6 +54,9 @@ def create_ui():
         m for m in model_dirs if has_trace_data(osp.join(RESULT_DIR, m))
     ]
 
+    # 获取泄漏模型列表
+    leaked_models = find_leaked_models(LEAK_TEST_DIR)
+
     with gr.Blocks(css=DARK_CSS, theme=gr.themes.Base()) as demo:
         # 顶部标题
         gr.HTML("""
@@ -160,7 +163,6 @@ def create_ui():
         with gr.Row(visible=False) as identify_row:
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 识别配置</h3>')
-                leaked_models = find_leaked_models(LEAK_TEST_DIR)
                 leaked_model = gr.Dropdown(
                     choices=leaked_models if leaked_models else ["暂无泄漏模型"],
                     value=leaked_models[0] if leaked_models else "暂无泄漏模型",
