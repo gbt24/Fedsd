@@ -323,8 +323,11 @@ def create_ui():
 
             leaked_path = osp.join(LEAK_TEST_DIR, leaked)
             trace_dir = osp.join(RESULT_DIR, source, "trace_data")
+            source_model_dir = osp.join(RESULT_DIR, source)
 
-            client, conf, error = identify_owner(leaked_path, trace_dir)
+            client, conf, error = identify_owner(
+                leaked_path, trace_dir, source_model_dir
+            )
 
             if error:
                 return f"❌ 失败：{error}", 0

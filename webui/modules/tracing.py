@@ -70,7 +70,7 @@ def simulate_client_leak(checkpoint_path, trace_dir, client_idx, output_path):
         return None, f"Error simulating leak: {str(e)}\n{traceback.format_exc()}"
 
 
-def identify_owner(leaked_model_path, trace_dir):
+def identify_owner(leaked_model_path, trace_dir, source_model_dir=None):
     """
     Identify the owner of a leaked model by comparing fingerprints.
     Returns the identified client index and confidence score.
@@ -98,17 +98,24 @@ def identify_owner(leaked_model_path, trace_dir):
         from watermark.fingerprint_diffusion import get_diffusion_embed_layers
         from utils.simple_unet import ClassConditionalUNet
 
-        checkpoint = torch.load(leaked_model_path, map_location="cpu")
+        Checkpoint = torch.load(leaked_model_path, map_location="cpu")
 
         if "model" in checkpoint:
             model_state = checkpoint["model"]
         else:
             model_state = checkpoint
 
-        model_args_path = osp.join(osp.dirname(leaked_model_path), "args.txt")
+        # Read model config from source model directory
+        if source_model_dir and osp.exists(osp.join(source_model_dir, "args.txt")):
+            model_args_path = osp.join(source_model_dir, "args.txt")
+        else:
+            model_args_path = osp.join(osp.dirname(leaked_model_path), "args.txt")
+
         if osp.exists(model_args_path):
             with open(model_args_path, "r") as f:
                 args_dict = json.load(f)
+            # Override block_out_channels to match pretrained model
+            args_dict["block_out_channels"] = (128, 256, 256, 256)
         else:
             args_dict = {
                 "model": "SimpleUNet",
