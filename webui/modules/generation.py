@@ -29,7 +29,7 @@ class SimpleArgs:
         self.beta_schedule = "linear"
         self.time_embed_dim = 512
         self.class_embed_dim = 512
-        self.block_out_channels = (128, 256, 256, 512)
+        self.block_out_channels = (128, 256, 256, 256)
         self.layers_per_block = 2
         self.dropout = 0.1
 
