@@ -109,7 +109,7 @@ def create_ui():
                 with gr.Accordion("高级设置", open=False):
                     class_label = gr.Number(value=0, label="类标签")
                     num_images = gr.Number(value=4, label="生成数量")
-                    num_steps = gr.Number(value=100, label="推理步数")
+                    num_steps = gr.Number(value=1000, label="推理步数")
                     seed = gr.Number(value=42, label="随机种子")
                     trigger_check = gr.Checkbox(label="生成水印图片", value=False)
                     device = gr.Radio(
@@ -150,7 +150,9 @@ def create_ui():
                     interactive=True,
                     precision=0,
                 )
-                leak_output = gr.Textbox(value="leaked_model.pth", label="输出文件名")
+                leak_output = gr.Textbox(
+                    value="leaked_model_client_0.pth", label="输出文件名"
+                )
 
                 simulate_btn = gr.Button("🎭 开始模拟", size="lg", variant="primary")
                 back2_btn = gr.Button("← 返回首页", size="lg")
@@ -295,6 +297,11 @@ def create_ui():
 
             return None, "❌ 未生成图片", ""
 
+        def update_output_name(client_idx_val):
+            if client_idx_val is not None:
+                return gr.update(value=f"leaked_model_client_{int(client_idx_val)}.pth")
+            return gr.update(value="leaked_model_client_0.pth")
+
         def do_simulate(model, client, output_name):
             if not model:
                 return "❌ 请选择源模型"
@@ -353,6 +360,7 @@ def create_ui():
         simulate_btn.click(
             do_simulate, [leak_model, client_idx, leak_output], [leak_result]
         )
+        client_idx.change(update_output_name, [client_idx], [leak_output])
         identify2_btn.click(
             do_identify, [leaked_model, source_model], [identify_result, confidence]
         )
