@@ -21,7 +21,7 @@ from modules.utils import (
     get_default_output_dir,
 )
 from modules.generation import generate_images, save_images
-from modules.tracing import simulate_client_leak, identify_owner, get_client_list
+from modules.tracing import simulate_client_leak, identify_owner
 
 
 PROJECT_ROOT = osp.dirname(osp.dirname(osp.abspath(__file__)))
@@ -132,31 +132,20 @@ def create_ui():
         with gr.Row(visible=False) as leak_row:
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 模拟配置</h3>')
-                default_model_with_trace = (
-                    models_with_trace[0] if models_with_trace else None
-                )
-                default_clients = (
-                    get_client_list(
-                        osp.join(RESULT_DIR, default_model_with_trace, "trace_data")
-                    )
-                    if default_model_with_trace
-                    else []
-                )
-
                 leak_model = gr.Dropdown(
                     choices=models_with_trace
                     if models_with_trace
                     else ["暂无可用模型"],
-                    value=default_model_with_trace,
+                    value=models_with_trace[0] if models_with_trace else None,
                     label="源模型",
                     interactive=True,
                     allow_custom_value=False,
                 )
-                client_idx = gr.Dropdown(
-                    choices=default_clients,
-                    value=default_clients[0] if default_clients else None,
+                client_idx = gr.Number(
+                    value=0,
                     label="客户端索引",
                     interactive=True,
+                    precision=0,
                 )
                 leak_output = gr.Textbox(value="leaked_model.pth", label="输出文件名")
 
@@ -254,20 +243,9 @@ def create_ui():
             show_home, inputs=[], outputs=[home_row, gen_row, leak_row, identify_row]
         )
 
-        def update_client_list(model_name):
-            if model_name:
-                clients = get_client_list(
-                    osp.join(RESULT_DIR, model_name, "trace_data")
-                )
-                return gr.Dropdown(
-                    choices=clients, value=clients[0] if clients else None
-                )
-            return gr.Dropdown(choices=[], value=None)
-
         def refresh_leaked():
             return gr.Dropdown(choices=find_leaked_models(LEAK_TEST_DIR))
 
-        leak_model.change(update_client_list, [leak_model], [client_idx])
         refresh_btn.click(refresh_leaked, [], [leaked_model])
 
         def do_generate(model_name, class_lbl, num_img, steps, sd, trigger, dev):
