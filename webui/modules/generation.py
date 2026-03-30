@@ -13,9 +13,25 @@ from PIL import Image
 
 sys.path.insert(0, osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__)))))
 
-from utils.utils import load_args
 from utils.simple_unet import ClassConditionalUNet
 from utils.simple_diffusion import SimpleDiffusion
+
+
+class SimpleArgs:
+    """Simple args class to avoid argparse conflicts."""
+
+    def __init__(self):
+        self.model = "SimpleUNet"
+        self.num_classes = 10
+        self.num_channels = 3
+        self.image_size = 32
+        self.timesteps = 1000
+        self.beta_schedule = "linear"
+        self.time_embed_dim = 512
+        self.class_embed_dim = 512
+        self.block_out_channels = [128, 256, 512, 512]
+        self.layers_per_block = 2
+        self.dropout = 0.0
 
 
 def load_model(checkpoint_path, device="cuda"):
@@ -30,7 +46,7 @@ def get_diffusion_args(model_dir):
     if not osp.exists(args_path):
         return None
 
-    args = load_args()
+    args = SimpleArgs()
     with open(args_path, "r") as f:
         lines = f.readlines()
         for line in lines:
@@ -40,12 +56,11 @@ def get_diffusion_args(model_dir):
                 if len(parts) == 2:
                     key = parts[0].strip()
                     value_str = parts[1].strip()
-                    if hasattr(args, key):
-                        try:
-                            value = eval(value_str)
-                        except:
-                            value = value_str
-                        setattr(args, key, value)
+                    try:
+                        value = eval(value_str)
+                    except:
+                        value = value_str
+                    setattr(args, key, value)
     return args
 
 
