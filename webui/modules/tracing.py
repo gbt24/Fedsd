@@ -164,15 +164,16 @@ def identify_owner(leaked_model_path, trace_dir, source_model_dir=None):
         weight = np.concatenate(weight_list)
 
         all_scores = []
-        epsilon = 0.5
 
         for client_idx in range(num_clients):
             matrix = extract_matrices[client_idx]
             result = np.dot(matrix, weight)
 
-            result = np.multiply(result, fingerprints[client_idx])
-            result[result > epsilon] = epsilon
-            score = np.sum(result) / lfp_length / epsilon
+            # Hamming distance method (more stable)
+            result[result >= 0] = 1
+            result[result < 0] = -1
+            ber = np.sum(result != fingerprints[client_idx]) / lfp_length
+            score = 1 - ber
             all_scores.append(score)
 
         best_match_idx = np.argmax(all_scores)
