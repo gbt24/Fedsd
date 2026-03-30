@@ -1,248 +1,201 @@
-# FedTracker WebUI ✨
+# 🌙 FedTracker WebUI - Dark Theme
 
-<p align="center">
-    <img src="https://img.shields.io/badge/Version-1.0.0-blue.svg" alt="Version">
-    <img src="https://img.shields.io/badge/Python-3.8%2B-green.svg" alt="Python">
-    <img src="https://img.shields.io/badge/Gradio-4.0%2B-orange.svg" alt="Gradio">
-    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
-</p>
+一个现代化的深色主题界面，用于联邦学习扩散模型水印追踪系统。
 
-<p align="center">
-    <strong>联邦学习扩散模型水印追踪系统</strong><br>
-    <em>现代化 · 易用 · 美观 · 专业</em>
-</p>
+## ✨ 界面特点
 
----
+### 🎨 深色主题设计
+- **主色调**：紫色渐变 (#7c3aed → #a855f7)
+- **背景色**：多层次深色 (#0f0f0f, #1a1a1a, #232323)
+- **现代感**：圆角卡片、悬停动效、阴影效果
 
-## 🌟 特性亮点
+### 📱 卡片式导航
+- **首页**：三个功能入口卡片
+  - 🎨 图片生成
+  - 🔍 泄漏模拟
+  - 🎯 所有者识别
+- **点击卡片**：进入对应功能页面
 
-- 🎨 **现代化设计** - 采用豆包风格的清新界面，渐变配色与圆角卡片
-- 🖼️ **图片生成** - 从扩散模型生成高质量图片，支持自定义参数
-- 🔍 **泄漏模拟** - 模拟客户端模型泄漏场景
-- 🎯 **所有者识别** - 基于指纹技术识别模型所有者
-- 📊 **实时反馈** - 友好的状态提示和进度显示
-- ⚡ **高效部署** - 一键启动，支持本地和远程访问
+### 🖼️ 图片生成页面布局
+```
+┌─────────────────────────────────────────────────┐
+│  ← Back to Home    Image Generation             │
+├───────────┬─────────────────────────────────────┤
+│           │                                      │
+│  Sidebar  │         Output Gallery              │
+│           │     (Generated Images Grid)          │
+│  • Model  │                                      │
+│  • Params │─────────────────────────────────────│
+│  • Config │                                      │
+│           │         Status & Info               │
+│           │     Output Settings Panel           │
+│           │                                      │
+│  [Generate]                                      │
+└───────────┴─────────────────────────────────────┘
+```
 
-## 📦 安装依赖
+## 🚀 快速启动
 
+### 方式一：启动脚本（推荐）
 ```bash
-# 进入 WebUI 目录
 cd webui
-
-# 安装依赖
-pip install -r requirements.txt
+./start.sh
 ```
 
-## 🚀 快速开始
-
-### 方法一：使用启动脚本（推荐）
-
+### 方式二：Python 直接运行
 ```bash
-# 添加执行权限（首次运行）
-chmod +x run.sh
-
-# 启动服务
-./run.sh
-
-# 自定义端口
-./run.sh --port 8080
-
-# 启用公网分享
-./run.sh --share
-```
-
-### 方法二：直接运行
-
-```bash
+cd webui
 python app.py --port 7860 --host 0.0.0.0
 ```
 
-访问 `http://localhost:7860` 即可使用！
+### 方式三：创建公网连接
+```bash
+cd webui
+python app.py --port 7860 --share
+```
 
-## 🎯 功能指南
+## 🎯 使用流程
 
-### Tab 1: 🎨 图片生成
+### 1️⃣ 首页导航
+1. 打开浏览器访问 `http://localhost:7860`
+2. 查看三个功能卡片
+3. 点击任意卡片进入功能页面
 
-从训练好的扩散模型生成图片
+### 2️⃣ 图片生成
+1. 左侧边栏选择模型
+2. 配置生成参数
+3. 点击 "Generate" 按钮
+4. 上方查看生成的图片
+5. 下方显示保存路径和状态
 
-**操作步骤：**
+### 3️⃣ 泄漏模拟
+1. 选择包含追踪数据的模型
+2. 选择客户端索引
+3. 设置输出文件名
+4. 点击 "Simulate Leak"
+5. 查看模拟结果
 
-1. 选择训练好的模型（从 `result/` 目录）
-2. 查看模型参数（展开"📋 模型参数"）
-3. 配置生成参数：
-   - **类标签**：生成图片的目标类别（0-9 for CIFAR）
-   - **生成数量**：一次生成的图片数
-   - **推理步数**：扩散模型采样步骤（建议 100-1000）
-   - **随机种子**：控制生成可重复性
-4. 高级选项：
-   - **水印图片**：勾选后生成触发器类水印图片
-   - **计算设备**：选择 GPU 或 CPU
-5. 点击 "🚀 开始生成"
+### 4️⃣ 所有者识别
+1. 选择泄漏模型文件
+2. 选择源模型追踪数据
+3. 点击 "Identify Owner"
+4. 查看识别结果和置信度
 
-**输出位置：** `webui/static/outputs/gen_YYYYMMDD_HHMMSS/`
+## 🎨 颜色方案
 
----
+```css
+/* 主要颜色 */
+--bg-primary: #0f0f0f;      /* 最深背景 */
+--bg-secondary: #1a1a1a;     /* 次级背景 */
+--bg-tertiary: #232323;      /* 第三层背景 */
 
-### Tab 2: 🔍 泄漏模拟
+/* 强调色 */
+--accent-primary: #7c3aed;    /* 紫色主调 */
+--accent-secondary: #a855f7; /* 紫色辅助 */
 
-模拟联邦学习中的客户端模型泄漏场景
+/* 文字颜色 */
+--text-primary: #ffffff;     /* 主要文字 */
+--text-secondary: #a0a0a0;   /* 次要文字 */
+--text-muted: #606060;       /* 静音文字 */
 
-**操作步骤：**
+/* 状态颜色 */
+--success: #10b981;          /* 成功 */
+--error: #ef4444;            /* 错误 */
+--warning: #f59e0b;          /* 警告 */
+```
 
-1. 选择包含追踪数据的源模型
-2. 查看追踪数据信息（展开"ℹ️ 追踪数据信息"）
-3. 选择要模拟泄漏的客户端索引
-4. 设置输出参数：
-   - **输出文件名**：泄漏模型保存名称
-   - **输出目录**：默认为 `/home/ubuntu/Fedsd/leak_test/`
-5. 点击 "🎭 模拟泄漏"
-
-**说明：** 系统会模拟指定客户端的模型被泄漏，用于后续所有者识别测试。
-
----
-
-### Tab 3: 🎯 所有者识别
-
-识别泄漏模型的所有者
-
-**操作步骤：**
-
-1. 选择泄漏模型文件（从 `leak_test/` 目录）
-2. 选择源模型的追踪数据
-3. 点击 "🔍 识别所有者"
-4. 查看识别结果：
-   - **客户端ID**：最可能的所有者
-   - **置信度**：识别可信度评分
-
-**工作原理：** 通过比对模型指纹与追踪数据中的客户端指纹，找出最匹配的所有者。
-
-## 🗂️ 项目结构
+## 📁 文件结构
 
 ```
 webui/
-├── app.py                     # 主应用（Gradio 界面）
-├── run.sh                     # 启动脚本
-├── requirements.txt           # 依赖列表
-├── modules/
-│   ├── __init__.py           # 模块初始化
-│   ├── utils.py              # 工具函数
-│   ├── generation.py         # 图片生成模块
-│   └── tracing.py            # 泄漏追踪模块
+├── app.py              # 主应用（深色主题）
+├── start.sh            # 启动脚本
+├── modules/            # 功能模块
+│   ├── utils.py        # 工具函数
+│   ├── generation.py   # 图片生成
+│   └── tracing.py      # 泄漏追踪
 └── static/
-    └── outputs/              # 生成的图片输出目录
+    └── outputs/        # 生成图片输出
 ```
 
-## ⚙️ 配置选项
-
-### 命令行参数
+## ⚙️ 命令行参数
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--port` | 7860 | 服务端口 |
 | `--host` | 0.0.0.0 | 服务主机 |
-| `--share` | False | 创建公网分享链接 |
+| `--share` | False | 创建公网链接 |
 
-### 关键配置
-
-```python
-# app.py 中的配置
-LEAK_TEST_DIR = "/home/ubuntu/Fedsd/leak_test/"  # 泄漏模型目录
-```
-
-## 🎨 界面设计
-
-WebUI 采用豆包风格的现代化设计：
-
-- **渐变背景**：流动的紫粉渐变背景，营造科技感
-- **圆角卡片**：20px 大圆角设计，柔和不生硬
-- **流畅动画**：所有交互配以平滑过渡效果
-- **友好提示**：emoji 图标配合清晰的状态反馈
-- **响应式布局**：适配各类屏幕尺寸
-
-## 🔧 常见问题
-
-<details>
-<summary><b>Q: 模型列表为空？</b></summary>
-
-**A:** 确保 `result/` 目录下有训练好的模型，且包含 `model_final.pth` 和 `args.txt` 文件。
-
+示例：
 ```bash
-ls result/simpleunet_cifar10_stage2/
-# 应显示: args.txt, model_final.pth, trace_data/
-```
-</details>
-
-<details>
-<summary><b>Q: 图片生成失败？</b></summary>
-
-**A:** 检查以下几点：
-1. GPU 内存是否充足（建议 8GB+）
-2. 模型文件是否完整
-3. 类标签是否在合法范围内（如 CIFAR-10 为 0-9）
-</details>
-
-<details>
-<summary><b>Q: 所有者识别置信度很低？</b></summary>
-
-**A:** 可能原因：
-1. 追踪数据不完整
-2. 模型架构不匹配
-3. 泄漏模型经过修改
-
-建议重新训练模型并确保保存完整的追踪数据。
-</details>
-
-<details>
-<summary><b>Q: 如何修改默认端口？</b></summary>
-
-**A:** 使用 `--port` 参数：
-
-```bash
+# 自定义端口
 python app.py --port 8080
+
+# 创建公网分享链接
+python app.py --share
+
+# 同时指定端口和分享
+python app.py --port 8080 --share
 ```
-</details>
 
-## 📸 界面截图
+## 🌐 访问地址
 
-### 主页面
-![Main Page](docs/screenshots/main.png)
+启动后，可通过以下地址访问：
 
-### 图片生成
-![Image Generation](docs/screenshots/generation.png)
+- **本地访问**：http://localhost:7860
+- **局域网访问**：http://YOUR_IP:7860
+- **公网访问**：使用 `--share` 参数后生成的链接
 
-### 泄漏模拟
-![Leak Simulation](docs/screenshots/leak.png)
+## 🎯 功能特点
 
-### 所有者识别
-![Owner Identification](docs/screenshots/identify.png)
+### 深色主题优势
+- ✅ 减少眼睛疲劳
+- ✅ 节能省电（OLED 屏幕）
+- ✅ 专业视觉效果
+- ✅ 更好的对比度
 
-## 🤝 贡献指南
+### 卡片式导航优势
+- ✅ 清晰的功能入口
+- ✅ 直观的操作流程
+- ✅ 现代化设计风格
+- ✅ 便于功能扩展
 
-欢迎提交 Issue 和 Pull Request！
+### 左侧边栏布局优势
+- ✅ 参数集中管理
+- ✅ 操作区域固定
+- ✅ 输出区域宽阔
+- ✅ 符合专业软件习惯
 
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+## 🔧 技术栈
 
-## 📄 许可证
+- **Gradio 4+**：Web UI 框架
+- **Python 3.8+**：后端语言
+- **PyTorch**：深度学习框架
+- **Pillow**：图像处理
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+## 📞 常见问题
 
-## 👥 作者
+### Q: 页面显示空白？
+A: 检查浏览器控制台是否有错误，确保所有依赖已安装。
 
-FedTracker Team
+### Q: 图片生成失败？
+A: 查看 Status 区的错误信息，检查模型文件和参数设置。
 
-## 🙏 致谢
+### Q: 如何返回首页？
+A: 点击左上角的 "← Back to Home" 按钮或刷新页面。
 
-- [Gradio](https://gradio.app/) - 强大的 WebUI 框架
-- [PyTorch](https://pytorch.org/) - 深度学习框架
-- [Diffusers](https://huggingface.co/docs/diffusers/) - 扩散模型库
+### Q: 公网链接何时失效？
+A: Gradio 分享链接有效期约 72 小时，过期需重新启动。
+
+## 📝 更新记录
+
+### v2.0.0 (Deep Dark Theme)
+- 🎨 全新深色主题设计
+- 📱 卡片式导航首页
+- 🖼️ 左侧边栏 + 上下布局的图片生成页面
+- ✨ 优化用户交互流程
+- 🚀 提升视觉体验
 
 ---
 
-<p align="center">
-    Made with ❤️ by FedTracker Team<br>
-    <em>联邦学习水印追踪领域的开源探索</em>
-</p>
+**FedTracker Team** | 现代化深度学习水印追踪系统
