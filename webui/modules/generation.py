@@ -172,7 +172,7 @@ def generate_images(
                         else:
                             img_np = img.squeeze().numpy()
 
-                        if img_np.max() <= 1.0 and img_np.min() >= -1.0:
+                        if img_np.min() < 0:
                             img_np = ((img_np + 1.0) / 2.0 * 255).astype("uint8")
                         elif img_np.max() <= 1.0:
                             img_np = (img_np * 255).astype("uint8")
