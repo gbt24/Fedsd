@@ -24,9 +24,9 @@ from modules.generation import generate_images, save_images
 from modules.tracing import simulate_client_leak, identify_owner, get_client_list
 
 
-LEAK_TEST_DIR = osp.join(
-    osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__)))), "leak_test"
-)
+PROJECT_ROOT = osp.dirname(osp.dirname(osp.abspath(__file__)))
+RESULT_DIR = osp.join(PROJECT_ROOT, "result")
+LEAK_TEST_DIR = osp.join(PROJECT_ROOT, "leak_test")
 
 DARK_CSS = """
 :root {
@@ -46,11 +46,13 @@ body { background: var(--bg-primary) !important; color: var(--text-primary) !imp
 
 
 def create_ui():
-    model_dirs = find_model_dirs("./result")
+    model_dirs = find_model_dirs(RESULT_DIR)
     default_model = model_dirs[0] if model_dirs else None
 
     # 过滤出有trace_data的模型
-    models_with_trace = [m for m in model_dirs if has_trace_data(f"./result/{m}")]
+    models_with_trace = [
+        m for m in model_dirs if has_trace_data(osp.join(RESULT_DIR, m))
+    ]
 
     with gr.Blocks(css=DARK_CSS, theme=gr.themes.Base()) as demo:
         # 顶部标题
@@ -243,7 +245,9 @@ def create_ui():
 
         def update_client_list(model_name):
             if model_name:
-                clients = get_client_list(f"./result/{model_name}/trace_data")
+                clients = get_client_list(
+                    osp.join(RESULT_DIR, model_name, "trace_data")
+                )
                 return gr.Dropdown(
                     choices=clients, value=clients[0] if clients else None
                 )
@@ -259,7 +263,7 @@ def create_ui():
             if not model_name:
                 return None, "❌ 请选择模型", ""
 
-            model_dir = f"./result/{model_name}"
+            model_dir = osp.join(RESULT_DIR, model_name)
             output_base = get_default_output_dir()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_dir = osp.join(output_base, f"gen_{timestamp}")
@@ -306,8 +310,8 @@ def create_ui():
                 return "❌ 请选择客户端"
 
             os.makedirs(LEAK_TEST_DIR, exist_ok=True)
-            checkpoint = f"./result/{model}/model_final.pth"
-            trace_dir = f"./result/{model}/trace_data"
+            checkpoint = osp.join(RESULT_DIR, model, "model_final.pth")
+            trace_dir = osp.join(RESULT_DIR, model, "trace_data")
             output = osp.join(LEAK_TEST_DIR, output_name)
 
             result, error = simulate_client_leak(
@@ -326,7 +330,7 @@ def create_ui():
                 return "❌ 请选择源模型", 0
 
             leaked_path = osp.join(LEAK_TEST_DIR, leaked)
-            trace_dir = f"./result/{source}/trace_data"
+            trace_dir = osp.join(RESULT_DIR, source, "trace_data")
 
             client, conf, error = identify_owner(leaked_path, trace_dir)
 
