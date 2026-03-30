@@ -132,18 +132,29 @@ def create_ui():
         with gr.Row(visible=False) as leak_row:
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 模拟配置</h3>')
+                default_model_with_trace = (
+                    models_with_trace[0] if models_with_trace else None
+                )
+                default_clients = (
+                    get_client_list(
+                        osp.join(RESULT_DIR, default_model_with_trace, "trace_data")
+                    )
+                    if default_model_with_trace
+                    else []
+                )
+
                 leak_model = gr.Dropdown(
                     choices=models_with_trace
                     if models_with_trace
                     else ["暂无可用模型"],
-                    value=models_with_trace[0] if models_with_trace else "暂无可用模型",
+                    value=default_model_with_trace,
                     label="源模型",
                     interactive=True,
                     allow_custom_value=False,
                 )
                 client_idx = gr.Dropdown(
-                    choices=[],
-                    value=None,
+                    choices=default_clients,
+                    value=default_clients[0] if default_clients else None,
                     label="客户端索引",
                     interactive=True,
                 )
