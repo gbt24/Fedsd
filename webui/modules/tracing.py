@@ -98,7 +98,7 @@ def identify_owner(leaked_model_path, trace_dir, source_model_dir=None):
         from watermark.fingerprint_diffusion import get_diffusion_embed_layers
         from utils.simple_unet import ClassConditionalUNet
 
-        Checkpoint = torch.load(leaked_model_path, map_location="cpu")
+        checkpoint = torch.load(leaked_model_path, map_location="cpu")
 
         if "model" in checkpoint:
             model_state = checkpoint["model"]
