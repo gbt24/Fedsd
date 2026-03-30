@@ -160,9 +160,10 @@ def create_ui():
         with gr.Row(visible=False) as identify_row:
             with gr.Column(scale=1, min_width=280):
                 gr.HTML('<h3 style="color: #fff;">⚙️ 识别配置</h3>')
+                leaked_models = find_leaked_models(LEAK_TEST_DIR)
                 leaked_model = gr.Dropdown(
-                    choices=find_leaked_models(LEAK_TEST_DIR),
-                    value=None,
+                    choices=leaked_models if leaked_models else ["暂无泄漏模型"],
+                    value=leaked_models[0] if leaked_models else "暂无泄漏模型",
                     label="泄漏模型",
                     interactive=True,
                     allow_custom_value=False,
