@@ -62,10 +62,10 @@ def load_config(config_path):
 
 def setup_train_args_from_config(config):
     """
-    Create a training args object from configuration dictionary.
+    Create training args from nested config dictionary.
 
     Args:
-        config: Configuration dictionary
+        config: Configuration dictionary (nested YAML structure)
 
     Returns:
         Args object with training parameters
@@ -76,43 +76,60 @@ def setup_train_args_from_config(config):
 
     args = TrainArgs()
 
-    default_config = {
-        "model": "SimpleUNet",
-        "dataset": "cifar10",
-        "num_classes": 10,
-        "num_channels": 3,
-        "image_size": 32,
-        "timesteps": 1000,
-        "beta_schedule": "linear",
-        "local_bs": 64,
-        "local_ep": 5,
-        "local_lr": 1e-4,
-        "local_optim": "adam",
-        "trigger_class": 10,
-        "embed_layer_names": "mid_block.attention.proj",
-        "lfp_length": 128,
-        "num_clients": 10,
-        "watermark": True,
-        "fingerprint": True,
-        "num_trigger_set": 100,
-        "time_embed_dim": 512,
-        "class_embed_dim": 512,
-        "block_out_channels": [128, 256, 256, 512],
-        "layers_per_block": 2,
-        "dropout": 0.1,
-        "diffusion_scheduler": "ddpm",
-        "sample_interval": 10,
-        "num_samples": 1000,
-        "gpu": 0,
-        "seed": 1,
-    }
+    # Extract model parameters
+    if "model" in config:
+        args.model = config["model"]["type"]
+        args.dataset = config["model"]["dataset"]
+        args.num_classes = config["model"]["num_classes"]
+        args.num_channels = config["model"]["num_channels"]
+        args.image_size = config["model"]["image_size"]
+        args.timesteps = config["model"]["timesteps"]
+        args.beta_schedule = config["model"]["beta_schedule"]
+        args.time_embed_dim = config["model"]["time_embed_dim"]
+        args.class_embed_dim = config["model"]["class_embed_dim"]
+        args.block_out_channels = config["model"]["block_out_channels"]
+        args.layers_per_block = config["model"]["layers_per_block"]
+        args.dropout = config["model"]["dropout"]
 
-    for key, value in default_config.items():
-        setattr(args, key, config.get(key, value))
+    # Extract finetuning parameters
+    if "finetuning" in config:
+        args.local_bs = config["finetuning"]["local_bs"]
+        args.local_ep = config["finetuning"]["local_ep"]
+        args.local_lr = config["finetuning"]["learning_rate"]
+        args.local_optim = config["finetuning"]["optimizer"]
 
-    for key, value in config.items():
-        if not hasattr(args, key):
-            setattr(args, key, value)
+    # Extract fingerprint parameters
+    if "fingerprint" in config:
+        args.embed_layer_names = config["fingerprint"]["embed_layer_names"]
+        args.lfp_length = config["fingerprint"]["lfp_length"]
+        args.num_clients = config["fingerprint"]["num_clients"]
+        args.trigger_class = config["model"]["num_classes"]  # Same as num_classes
+
+    # Extract evaluation parameters
+    if "evaluation" in config:
+        args.fingerprint_threshold = config["evaluation"]["fingerprint_threshold"]
+        args.seed = config["evaluation"]["seed"]
+
+    # Extract compute parameters
+    if "compute" in config:
+        gpu_id = config["compute"]["gpu"]
+        args.device = torch.device(
+            f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu"
+        )
+
+    # Set default values for required but missing parameters
+    if not hasattr(args, "watermark"):
+        args.watermark = True
+    if not hasattr(args, "fingerprint"):
+        args.fingerprint = True
+    if not hasattr(args, "num_trigger_set"):
+        args.num_trigger_set = 100
+    if not hasattr(args, "diffusion_scheduler"):
+        args.diffusion_scheduler = "ddpm"
+    if not hasattr(args, "sample_interval"):
+        args.sample_interval = 10
+    if not hasattr(args, "num_samples"):
+        args.num_samples = 1000
 
     return args
 
