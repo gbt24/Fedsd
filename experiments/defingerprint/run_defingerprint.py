@@ -502,34 +502,45 @@ def run_experiment(config_path, output_dir=None, gpu=None):
     printf(f"Train dataset size: {len(train_dataset)}", log_path)
     printf(f"Test dataset size: {len(test_dataset)}", log_path)
 
-    stage1_path = config.get("stage1_checkpoint")
-    stage2_path = config.get("stage2_checkpoint")
-    trace_data_dir = config.get("trace_data_dir")
+    # Extract checkpoint paths from nested config
+    stage1_path = config["baselines"]["stage1_checkpoint"]
+    stage2_path = config["baselines"]["stage2_checkpoint"]
 
-    if not stage1_path or not os.path.exists(stage1_path):
+    if not os.path.exists(stage1_path):
         raise FileNotFoundError(f"Stage 1 checkpoint not found: {stage1_path}")
-    if not stage2_path or not os.path.exists(stage2_path):
+    if not os.path.exists(stage2_path):
         raise FileNotFoundError(f"Stage 2 checkpoint not found: {stage2_path}")
-    if not trace_data_dir or not os.path.exists(trace_data_dir):
-        raise FileNotFoundError(f"Trace data directory not found: {trace_data_dir}")
 
     printf("\nLoading models...", log_path)
     stage1_model = load_model_from_checkpoint(stage1_path, args, device)
     stage2_model = load_model_from_checkpoint(stage2_path, args, device)
     printf("Models loaded successfully", log_path)
 
-    printf("\nLoading fingerprint trace data...", log_path)
-    local_fingerprints, extracting_matrices, trace_metadata = load_trace_data(
-        trace_data_dir
+    # Generate fingerprint data (since Stage 2 didn't save trace_data)
+    printf("\nGenerating fingerprint data...", log_path)
+    from watermark.fingerprint_diffusion import (
+        generate_fingerprints,
+        generate_extracting_matrices,
+        get_diffusion_embed_layers_length,
     )
-    printf(f"Loaded {len(local_fingerprints)} client fingerprints", log_path)
-    printf(f"Fingerprint length: {trace_metadata['lfp_length']}", log_path)
+
+    weight_size = get_diffusion_embed_layers_length(
+        stage2_model, config["fingerprint"]["embed_layer_names"]
+    )
+    local_fingerprints = generate_fingerprints(
+        config["fingerprint"]["num_clients"], config["fingerprint"]["lfp_length"]
+    )
+    extracting_matrices = generate_extracting_matrices(
+        weight_size,
+        config["fingerprint"]["lfp_length"],
+        config["fingerprint"]["num_clients"],
+    )
+    printf(f"Generated {len(local_fingerprints)} client fingerprints", log_path)
+    printf(f"Fingerprint length: {config['fingerprint']['lfp_length']}", log_path)
 
     results = {
         "config": config,
-        "num_finetune_epochs_list": config.get(
-            "num_finetune_epochs_list", [0, 5, 10, 20]
-        ),
+        "num_finetune_epochs_list": config["finetuning"]["epochs"],
     }
 
     printf("\nGenerating watermark data...", log_path)
@@ -596,7 +607,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
         stage2_model,
         local_fingerprints,
         extracting_matrices,
-        trace_metadata["embed_layer_names"],
+        config["fingerprint"]["embed_layer_names"],
         epsilon=0.5,
         use_hamming=False,
     )
@@ -606,9 +617,9 @@ def run_experiment(config_path, output_dir=None, gpu=None):
     printf(f"Stage 2 Avg FSS Score: {stage2_fp_before['avg_score']:.4f}", log_path)
     results["stage2"]["before_finetune"]["fingerprint"] = stage2_fp_before
 
-    num_finetune_epochs_list = config.get("num_finetune_epochs_list", [0, 5, 10, 20])
-    finetune_lr = config.get("finetune_lr", args.local_lr)
-    finetune_use_watermark = config.get("finetune_use_watermark", False)
+    num_finetune_epochs_list = config["finetuning"]["epochs"]
+    finetune_lr = config["finetuning"]["learning_rate"]
+    finetune_use_watermark = False  # Defingerprinting doesn't use watermark data
 
     results["finetune_results"] = []
 
