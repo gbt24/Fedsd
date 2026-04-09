@@ -42,6 +42,7 @@ from watermark.fingerprint_diffusion import (
     get_diffusion_embed_layers,
     extracting_fingerprints,
 )
+from utils.simple_diffusion import SimpleDiffusionScheduler
 from watermark.watermark_diffusion import ClassConditionalWatermarkGenerator
 
 
@@ -571,7 +572,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
         trigger_class=args.trigger_class,
     )
     watermark_dataset = watermark_generator.generate_trigger_set(args)
-    watermark_images = watermark_dataset.tensors[0]
+    watermark_images = watermark_dataset.images
     printf(f"Generated {len(watermark_images)} watermark images", log_path)
 
     results["stage1"] = {}
@@ -593,7 +594,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
         stage1_model,
         local_fingerprints,
         extracting_matrices,
-        trace_metadata["embed_layer_names"],
+        config["fingerprint"]["embed_layer_names"],
         epsilon=0.5,
         use_hamming=False,
     )
@@ -686,7 +687,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
             finetuned_model,
             local_fingerprints,
             extracting_matrices,
-            trace_metadata["embed_layer_names"],
+            config["fingerprint"]["embed_layer_names"],
             epsilon=0.5,
             use_hamming=False,
         )
