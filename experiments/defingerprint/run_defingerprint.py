@@ -113,6 +113,7 @@ def setup_train_args_from_config(config):
     # Extract compute parameters
     if "compute" in config:
         gpu_id = config["compute"]["gpu"]
+        args.gpu = gpu_id
         args.device = torch.device(
             f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu"
         )
@@ -130,6 +131,9 @@ def setup_train_args_from_config(config):
         args.sample_interval = 10
     if not hasattr(args, "num_samples"):
         args.num_samples = 1000
+    if not hasattr(args, "gpu"):
+        args.gpu = 0
+        args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     return args
 
