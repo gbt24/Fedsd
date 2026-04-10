@@ -37,8 +37,6 @@ from utils.fid_eval import evaluate_fid
 from utils.simple_diffusion import SimpleDiffusion
 from utils.utils import printf
 from watermark.fingerprint_diffusion import (
-    generate_extracting_matrices,
-    generate_fingerprints,
     get_diffusion_embed_layers,
     extracting_fingerprints,
 )
@@ -538,27 +536,34 @@ def run_experiment(config_path, output_dir=None, gpu=None):
     stage2_model = load_model_from_checkpoint(stage2_path, args, device)
     printf("Models loaded successfully", log_path)
 
-    # Generate fingerprint data (since Stage 2 didn't save trace_data)
-    printf("\nGenerating fingerprint data...", log_path)
-    from watermark.fingerprint_diffusion import (
-        generate_fingerprints,
-        generate_extracting_matrices,
-        get_diffusion_embed_layers_length,
-    )
+    # Load trace data from Stage 2
+    trace_dir = config["baselines"].get("trace_dir", None)
+    if trace_dir is None:
+        trace_dir = os.path.join(os.path.dirname(stage2_path), "trace_data")
 
-    weight_size = get_diffusion_embed_layers_length(
-        stage2_model, config["fingerprint"]["embed_layer_names"]
-    )
-    local_fingerprints = generate_fingerprints(
-        config["fingerprint"]["num_clients"], config["fingerprint"]["lfp_length"]
-    )
-    extracting_matrices = generate_extracting_matrices(
-        weight_size,
-        config["fingerprint"]["lfp_length"],
-        config["fingerprint"]["num_clients"],
-    )
-    printf(f"Generated {len(local_fingerprints)} client fingerprints", log_path)
-    printf(f"Fingerprint length: {config['fingerprint']['lfp_length']}", log_path)
+    if os.path.exists(trace_dir):
+        printf("\nLoading trace data from: {}".format(trace_dir), log_path)
+        local_fingerprints, extracting_matrices, trace_metadata = load_trace_data(
+            trace_dir
+        )
+        printf(
+            "Loaded {} client fingerprints from trace_data".format(
+                len(local_fingerprints)
+            ),
+            log_path,
+        )
+        printf("Fingerprint length: {}".format(len(local_fingerprints[0])), log_path)
+        embed_layer_names = trace_metadata.get(
+            "embed_layer_names", config["fingerprint"]["embed_layer_names"]
+        )
+    else:
+        raise FileNotFoundError(
+            "trace_data not found at {}. "
+            "Run: python save_trace_data.py --save_dir {} --num_clients 25 --lfp_length 128 "
+            "--embed_layer_names mid_block.attention.proj".format(
+                trace_dir, os.path.dirname(stage2_path)
+            )
+        )
 
     results = {
         "config": config,
@@ -594,7 +599,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
         stage1_model,
         local_fingerprints,
         extracting_matrices,
-        config["fingerprint"]["embed_layer_names"],
+        embed_layer_names,
         epsilon=0.5,
         use_hamming=False,
     )
@@ -629,7 +634,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
         stage2_model,
         local_fingerprints,
         extracting_matrices,
-        config["fingerprint"]["embed_layer_names"],
+        embed_layer_names,
         epsilon=0.5,
         use_hamming=False,
     )
@@ -687,7 +692,7 @@ def run_experiment(config_path, output_dir=None, gpu=None):
             finetuned_model,
             local_fingerprints,
             extracting_matrices,
-            config["fingerprint"]["embed_layer_names"],
+            embed_layer_names,
             epsilon=0.5,
             use_hamming=False,
         )
