@@ -129,12 +129,13 @@ def main():
     args = parser.parse_args()
 
     args_file = os.path.join(args.save_dir, "args.txt")
-    if args.num_clients is None:
-        if os.path.exists(args_file):
-            with open(args_file, "r") as f:
-                args_dict = json.load(f)
+    if os.path.exists(args_file):
+        with open(args_file, "r") as f:
+            args_dict = json.load(f)
+        if args.num_clients is None:
             args.num_clients = args_dict.get("num_clients", 10)
-        else:
+    else:
+        if args.num_clients is None:
             args.num_clients = 10
 
     from watermark.fingerprint_diffusion import (
@@ -150,7 +151,12 @@ def main():
     local_fingerprints = generate_fingerprints(args.num_clients, args.lfp_length)
 
     print("Loading model to determine weight size...")
-    model_args = load_args() if os.path.exists("args.txt") else args
+    if os.path.exists(args_file):
+        with open(args_file, "r") as f:
+            saved_args_dict = json.load(f)
+        model_args = argparse.Namespace(**saved_args_dict)
+    else:
+        model_args = load_args() if os.path.exists("args.txt") else args
     model = get_model(model_args)
     weight_size = get_diffusion_embed_layers_length(model, args.embed_layer_names)
 

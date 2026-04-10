@@ -10,3 +10,4 @@
 ./watermark/__pycache__/
 *.log
 *.out
+*.pyc
