@@ -155,6 +155,12 @@ def main():
         with open(args_file, "r") as f:
             saved_args_dict = json.load(f)
         model_args = argparse.Namespace(**saved_args_dict)
+        if not hasattr(model_args, "device"):
+            model_args.device = torch.device(
+                "cuda:0" if torch.cuda.is_available() else "cpu"
+            )
+        if not hasattr(model_args, "gpu"):
+            model_args.gpu = 0
     else:
         model_args = load_args() if os.path.exists("args.txt") else args
     model = get_model(model_args)
