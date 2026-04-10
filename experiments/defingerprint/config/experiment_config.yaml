@@ -23,7 +23,7 @@ baselines:
 
 finetuning:
   # Fine-tuning parameters (using training-stage lr as confirmed)
-  epochs: [1, 3, 5, 10]
+  epochs: [1, 3, 5]
   learning_rate: 1.0e-4
   local_ep: 5
   local_bs: 64
@@ -42,7 +42,7 @@ fingerprint:
 
 evaluation:
   # FID evaluation parameters
-  fid_samples: 5000
+  fid_samples: 1000
   
   # Fingerprint recognition parameters
   fingerprint_threshold: 0.85  # FSS score threshold for success
